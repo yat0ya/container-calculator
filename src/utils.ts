@@ -1,5 +1,5 @@
 import { BoxDimensions } from './types';
-import { CONTAINER_20FT } from './constants';
+import containers from './data/containers.json';
 
 // Generate a slightly varied color based on a base color
 export function generateVariedColor(baseHue: number, index: number): string {
@@ -10,6 +10,11 @@ export function generateVariedColor(baseHue: number, index: number): string {
 }
 
 export function calculateBoxFit(boxDim: BoxDimensions) {
+  const defaultContainer = containers.find(c => c.id === '20ST');
+  if (!defaultContainer) {
+    throw new Error('Default container (20ST) not found in containers.json');
+  }
+
   // Convert box dimensions from cm to meters
   const boxInMeters = {
     length: boxDim.length / 100,
@@ -18,9 +23,9 @@ export function calculateBoxFit(boxDim: BoxDimensions) {
   };
 
   // Calculate how many boxes fit in each dimension
-  const lengthFit = Math.floor(CONTAINER_20FT.length / boxInMeters.length);
-  const widthFit = Math.floor(CONTAINER_20FT.width / boxInMeters.width);
-  const heightFit = Math.floor(CONTAINER_20FT.height / boxInMeters.height);
+  const lengthFit = Math.floor(defaultContainer.length / boxInMeters.length);
+  const widthFit = Math.floor(defaultContainer.width / boxInMeters.width);
+  const heightFit = Math.floor(defaultContainer.height / boxInMeters.height);
 
   // Calculate total boxes
   const totalBoxes = lengthFit * widthFit * heightFit;

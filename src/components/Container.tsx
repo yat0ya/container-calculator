@@ -1,9 +1,13 @@
-import { CONTAINER_20FT } from '../constants';
+import { Container as ContainerType } from '../types';
 
-export function Container() {
+interface ContainerProps {
+  container: ContainerType;
+}
+
+export function Container({ container }: ContainerProps) {
   return (
-    <mesh position={[CONTAINER_20FT.length/2, CONTAINER_20FT.height/2, CONTAINER_20FT.width/2]}>
-      <boxGeometry args={[CONTAINER_20FT.length, CONTAINER_20FT.height, CONTAINER_20FT.width]} />
+    <mesh position={[container.length/2, container.height/2, container.width/2]}>
+      <boxGeometry args={[container.length, container.height, container.width]} />
       <meshStandardMaterial color="#666666" transparent opacity={0.1} wireframe />
     </mesh>
   );

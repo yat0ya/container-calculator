@@ -1,7 +1,6 @@
-import { BoxDimensions, CalculationResult } from '../types';
-import { CONTAINER_20FT } from '../constants';
+import { BoxDimensions, CalculationResult, Container } from '../types';
 
-export function skylineAlgorithm(boxDim: BoxDimensions): CalculationResult {
+export function skylineAlgorithm(boxDim: BoxDimensions, container: Container): CalculationResult {
   // Convert box dimensions from cm to meters
   const boxInMeters = {
     length: boxDim.length / 100,
@@ -23,9 +22,9 @@ export function skylineAlgorithm(boxDim: BoxDimensions): CalculationResult {
   let bestFit = { lengthFit: 0, widthFit: 0, heightFit: 0 };
 
   rotations.forEach(([l, w, h]) => {
-    const lengthFit = Math.floor(CONTAINER_20FT.length / l);
-    const widthFit = Math.floor(CONTAINER_20FT.width / w);
-    const heightFit = Math.floor(CONTAINER_20FT.height / h);
+    const lengthFit = Math.floor(container.length / l);
+    const widthFit = Math.floor(container.width / w);
+    const heightFit = Math.floor(container.height / h);
     
     const totalBoxes = lengthFit * widthFit * heightFit;
     

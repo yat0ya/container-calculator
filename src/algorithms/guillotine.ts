@@ -1,7 +1,6 @@
-import { BoxDimensions, CalculationResult } from '../types';
-import { CONTAINER_20FT } from '../constants';
+import { BoxDimensions, CalculationResult, Container } from '../types';
 
-export function guillotineAlgorithm(boxDim: BoxDimensions): CalculationResult {
+export function guillotineAlgorithm(boxDim: BoxDimensions, container: Container): CalculationResult {
   // Convert box dimensions from cm to meters
   const boxInMeters = {
     length: boxDim.length / 100,
@@ -20,16 +19,16 @@ export function guillotineAlgorithm(boxDim: BoxDimensions): CalculationResult {
 
   rotations.forEach(([l, w, h]) => {
     // Try horizontal first cut
-    const hLengthFit = Math.floor(CONTAINER_20FT.length / l);
-    const hWidthFit = Math.floor(CONTAINER_20FT.width / w);
-    const hHeightFit = Math.floor(CONTAINER_20FT.height / h);
+    const hLengthFit = Math.floor(container.length / l);
+    const hWidthFit = Math.floor(container.width / w);
+    const hHeightFit = Math.floor(container.height / h);
     
     const hTotalBoxes = hLengthFit * hWidthFit * hHeightFit;
     
     // Try vertical first cut
-    const vLengthFit = Math.floor(CONTAINER_20FT.length / w);
-    const vWidthFit = Math.floor(CONTAINER_20FT.width / l);
-    const vHeightFit = Math.floor(CONTAINER_20FT.height / h);
+    const vLengthFit = Math.floor(container.length / w);
+    const vWidthFit = Math.floor(container.width / l);
+    const vHeightFit = Math.floor(container.height / h);
     
     const vTotalBoxes = vLengthFit * vWidthFit * vHeightFit;
     

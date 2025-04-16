@@ -1,20 +1,24 @@
 import React from 'react';
 import { Calculator } from 'lucide-react';
-import { Algorithm, BoxDimensions } from '../types';
-import { ALGORITHMS } from '../constants';
+import { Algorithm, BoxDimensions, Container } from '../types';
+import { ALGORITHMS, CONTAINERS } from '../constants';
 
 interface BoxDimensionsFormProps {
   boxDimensions: BoxDimensions;
   selectedAlgorithm: Algorithm;
+  selectedContainer: Container;
   onDimensionsChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onAlgorithmChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
+  onContainerChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
 }
 
 export function BoxDimensionsForm({
   boxDimensions,
   selectedAlgorithm,
+  selectedContainer,
   onDimensionsChange,
-  onAlgorithmChange
+  onAlgorithmChange,
+  onContainerChange
 }: BoxDimensionsFormProps) {
   return (
     <>
@@ -24,6 +28,21 @@ export function BoxDimensionsForm({
       </div>
 
       <div className="mb-8">
+        <div className="mb-6">
+          <h2 className="text-lg font-semibold text-gray-700 mb-2">Container Type</h2>
+          <select
+            value={selectedContainer.id}
+            onChange={onContainerChange}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            {CONTAINERS.map(container => (
+              <option key={container.id} value={container.id}>
+                {container.name} ({container.length.toFixed(2)}m × {container.width.toFixed(2)}m × {container.height.toFixed(2)}m) - Max Load: {container.maxLoad}kg
+              </option>
+            ))}
+          </select>
+        </div>
+
         <div className="mb-6">
           <h2 className="text-lg font-semibold text-gray-700 mb-2">Calculation Algorithm</h2>
           <select

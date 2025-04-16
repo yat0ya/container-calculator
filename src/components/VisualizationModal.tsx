@@ -2,17 +2,17 @@ import { Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { X } from 'lucide-react';
 import { Scene } from './Scene';
-import { BoxDimensions, CalculationResult } from '../types';
-import { CONTAINER_20FT } from '../constants';
+import { BoxDimensions, CalculationResult, Container } from '../types';
 
 interface VisualizationModalProps {
   isOpen: boolean;
   onClose: () => void;
   result: CalculationResult;
   boxDimensions: BoxDimensions;
+  container: Container;
 }
 
-export function VisualizationModal({ isOpen, onClose, result, boxDimensions }: VisualizationModalProps) {
+export function VisualizationModal({ isOpen, onClose, result, boxDimensions, container }: VisualizationModalProps) {
   if (!isOpen) return null;
 
   return (
@@ -31,7 +31,7 @@ export function VisualizationModal({ isOpen, onClose, result, boxDimensions }: V
         <div className="h-[calc(100%-8rem)]">
           <Suspense fallback={<div className="flex items-center justify-center h-full">Loading 3D view...</div>}>
             <Canvas>
-              <Scene result={result} boxDimensions={boxDimensions} />
+              <Scene result={result} boxDimensions={boxDimensions} container={container} />
             </Canvas>
           </Suspense>
         </div>
@@ -48,7 +48,7 @@ export function VisualizationModal({ isOpen, onClose, result, boxDimensions }: V
             <div>
               <p className="text-sm text-gray-600">Container Dimensions:</p>
               <p className="text-sm text-gray-800">
-                {CONTAINER_20FT.length} × {CONTAINER_20FT.width} × {CONTAINER_20FT.height} m
+                {container.length.toFixed(2)} × {container.width.toFixed(2)} × {container.height.toFixed(2)} m
               </p>
             </div>
           </div>

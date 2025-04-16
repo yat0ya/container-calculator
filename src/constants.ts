@@ -1,11 +1,15 @@
-import { AlgorithmOption } from './types';
+import { AlgorithmOption, Container } from './types';
+import containersData from './data/containers.json';
 
-// Standard 20ft container internal dimensions in meters
-export const CONTAINER_20FT = {
-  length: 5.89,
-  width: 2.35,
-  height: 2.39,
-};
+export const CONTAINERS: Container[] = containersData.containers.map(container => ({
+  ...container,
+  // Convert mm to m
+  length: container.length / 1000,
+  width: container.width / 1000,
+  height: container.height / 1000
+}));
+
+export const DEFAULT_CONTAINER = CONTAINERS[0];
 
 export const ALGORITHMS: AlgorithmOption[] = [
   {

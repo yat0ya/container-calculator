@@ -4,6 +4,15 @@ export interface BoxDimensions {
   height: number;
 }
 
+export interface Container {
+  id: string;
+  name: string;
+  length: number;
+  width: number;
+  height: number;
+  maxLoad: number;
+}
+
 export interface CalculationResult {
   lengthFit: number;
   widthFit: number;

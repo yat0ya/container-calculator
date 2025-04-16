@@ -2,10 +2,11 @@ import React, { useState } from 'react';
 import { BoxDimensionsForm } from './components/BoxDimensionsForm';
 import { CalculationResults } from './components/CalculationResults';
 import { VisualizationModal } from './components/VisualizationModal';
-import { Algorithm, BoxDimensions } from './types';
+import { Algorithm, BoxDimensions, Container } from './types';
 import { basicAlgorithm } from './algorithms/basic';
 import { skylineAlgorithm } from './algorithms/skyline';
 import { guillotineAlgorithm } from './algorithms/guillotine';
+import { DEFAULT_CONTAINER, CONTAINERS } from './constants';
 
 function App() {
   const [boxDimensions, setBoxDimensions] = useState<BoxDimensions>({
@@ -14,17 +15,22 @@ function App() {
     height: 30,
   });
   const [selectedAlgorithm, setSelectedAlgorithm] = useState<Algorithm>('basic');
+  const [selectedContainer, setSelectedContainer] = useState<Container>(DEFAULT_CONTAINER);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const calculateResult = () => {
-    switch (selectedAlgorithm) {
-      case 'skyline':
-        return skylineAlgorithm(boxDimensions);
-      case 'guillotine':
-        return guillotineAlgorithm(boxDimensions);
-      default:
-        return basicAlgorithm(boxDimensions);
-    }
+    const algorithm = (() => {
+      switch (selectedAlgorithm) {
+        case 'skyline':
+          return skylineAlgorithm;
+        case 'guillotine':
+          return guillotineAlgorithm;
+        default:
+          return basicAlgorithm;
+      }
+    })();
+
+    return algorithm(boxDimensions, selectedContainer);
   };
 
   const result = calculateResult();
@@ -41,6 +47,12 @@ function App() {
     setSelectedAlgorithm(e.target.value as Algorithm);
   };
 
+  const handleContainerChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const containerId = e.target.value;
+    const container = CONTAINERS.find(c => c.id === containerId) || DEFAULT_CONTAINER;
+    setSelectedContainer(container);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100 p-6">
       <div className="max-w-2xl mx-auto">
@@ -50,10 +62,14 @@ function App() {
             onDimensionsChange={handleInputChange}
             selectedAlgorithm={selectedAlgorithm}
             onAlgorithmChange={handleAlgorithmChange}
+            selectedContainer={selectedContainer}
+            onContainerChange={handleContainerChange}
           />
           <CalculationResults
             result={result}
             onVisualize={() => setIsModalOpen(true)}
+            selectedAlgorithm={selectedAlgorithm}
+            container={selectedContainer}
           />
         </div>
       </div>
@@ -63,6 +79,7 @@ function App() {
         onClose={() => setIsModalOpen(false)}
         result={result}
         boxDimensions={boxDimensions}
+        container={selectedContainer}
       />
     </div>
   );

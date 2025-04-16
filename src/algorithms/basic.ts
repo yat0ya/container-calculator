@@ -1,7 +1,6 @@
-import { BoxDimensions, CalculationResult } from '../types';
-import { CONTAINER_20FT } from '../constants';
+import { BoxDimensions, CalculationResult, Container } from '../types';
 
-export function basicAlgorithm(boxDim: BoxDimensions): CalculationResult {
+export function basicAlgorithm(boxDim: BoxDimensions, container: Container): CalculationResult {
   // Convert box dimensions from cm to meters
   const boxInMeters = {
     length: boxDim.length / 100,
@@ -9,19 +8,35 @@ export function basicAlgorithm(boxDim: BoxDimensions): CalculationResult {
     height: boxDim.height / 100,
   };
 
-  // Calculate how many boxes fit in each dimension without rotation
-  const lengthFit = Math.floor(CONTAINER_20FT.length / boxInMeters.length);
-  const widthFit = Math.floor(CONTAINER_20FT.width / boxInMeters.width);
-  const heightFit = Math.floor(CONTAINER_20FT.height / boxInMeters.height);
+  // Try all possible rotations and take the best result
+  const rotations = [
+    [boxInMeters.length, boxInMeters.width, boxInMeters.height],
+    [boxInMeters.width, boxInMeters.length, boxInMeters.height],
+    [boxInMeters.length, boxInMeters.height, boxInMeters.width],
+    [boxInMeters.height, boxInMeters.length, boxInMeters.width],
+    [boxInMeters.width, boxInMeters.height, boxInMeters.length],
+    [boxInMeters.height, boxInMeters.width, boxInMeters.length],
+  ];
 
-  // Calculate total boxes
-  const totalBoxes = lengthFit * widthFit * heightFit;
+  let maxBoxes = 0;
+  let bestFit = { lengthFit: 0, widthFit: 0, heightFit: 0 };
+
+  rotations.forEach(([l, w, h]) => {
+    const lengthFit = Math.floor(container.length / l);
+    const widthFit = Math.floor(container.width / w);
+    const heightFit = Math.floor(container.height / h);
+    
+    const totalBoxes = lengthFit * widthFit * heightFit;
+    
+    if (totalBoxes > maxBoxes) {
+      maxBoxes = totalBoxes;
+      bestFit = { lengthFit, widthFit, heightFit };
+    }
+  });
 
   return {
-    lengthFit,
-    widthFit,
-    heightFit,
-    totalBoxes,
+    ...bestFit,
+    totalBoxes: maxBoxes,
     boxInMeters,
   };
 }

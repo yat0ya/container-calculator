@@ -1,0 +1,60 @@
+{
+    "containers": [
+      {
+        "id": "20ST",
+        "name": "Kontener 20'",
+        "length": 5758,
+        "width": 2352,
+        "height": 2385,
+        "maxLoad": 28200
+      },
+      {
+        "id": "20DC",
+        "name": "Kontener 20' DC",
+        "length": 5919,
+        "width": 2340,
+        "height": 2380,
+        "maxLoad": 22100
+      },
+      {
+        "id": "20HC",
+        "name": "Kontener 20' HC",
+        "length": 5758,
+        "width": 2352,
+        "height": 2684,
+        "maxLoad": 29200
+      },
+      {
+        "id": "40ST",
+        "name": "Kontener 40'",
+        "length": 12032,
+        "width": 2352,
+        "height": 2385,
+        "maxLoad": 26600
+      },
+      {
+        "id": "40DC",
+        "name": "Kontener 40' DC",
+        "length": 12051,
+        "width": 2340,
+        "height": 2380,
+        "maxLoad": 27397
+      },
+      {
+        "id": "40HC",
+        "name": "Kontener 40' HC",
+        "length": 12117,
+        "width": 2388,
+        "height": 2694,
+        "maxLoad": 29600
+      },
+      {
+        "id": "45HC",
+        "name": "Kontener 45' HC",
+        "length": 13582,
+        "width": 2347,
+        "height": 2690,
+        "maxLoad": 28390
+      }
+    ]
+  }
