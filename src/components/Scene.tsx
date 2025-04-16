@@ -17,38 +17,39 @@ export function Scene({ result, boxDimensions, container }: SceneProps) {
 
   // Calculate the optimal box dimensions based on container dimensions
   const rotations: [number, number, number][] = [
-    [boxInMeters.length, boxInMeters.width, boxInMeters.height],
-    [boxInMeters.width, boxInMeters.length, boxInMeters.height],
     [boxInMeters.length, boxInMeters.height, boxInMeters.width],
-    [boxInMeters.height, boxInMeters.length, boxInMeters.width],
     [boxInMeters.width, boxInMeters.height, boxInMeters.length],
+    [boxInMeters.length, boxInMeters.width, boxInMeters.height],
     [boxInMeters.height, boxInMeters.width, boxInMeters.length],
+    [boxInMeters.width, boxInMeters.length, boxInMeters.height],
+    [boxInMeters.height, boxInMeters.length, boxInMeters.width],
   ];
 
   // Find the rotation that matches our result
-  const optimalRotation = rotations.find(([l, w, h]) => {
+  const optimalRotation = rotations.find(([l, h, w]) => {
     const lengthFit = Math.floor(container.length / l);
-    const widthFit = Math.floor(container.width / w);
     const heightFit = Math.floor(container.height / h);
+    const widthFit = Math.floor(container.width / w);
     return lengthFit === result.lengthFit && 
-           widthFit === result.widthFit && 
-           heightFit === result.heightFit;
+           heightFit === result.heightFit && 
+           widthFit === result.widthFit;
   }) || rotations[0];
 
   // Create boxes using the optimal rotation
   let boxIndex = 0;
   for (let l = 0; l < result.lengthFit; l++) {
-    for (let w = 0; w < result.widthFit; w++) {
-      for (let h = 0; h < result.heightFit; h++) {
-        const xPos = l * optimalRotation[0] - (container.length / 2) + (optimalRotation[0] / 2);
-        const yPos = h * optimalRotation[1] - (container.height / 2) + (optimalRotation[1] / 2);
-        const zPos = w * optimalRotation[2] - (container.width / 2) + (optimalRotation[2] / 2);
+    for (let h = 0; h < result.heightFit; h++) {
+      for (let w = 0; w < result.widthFit; w++) {
+        // Calculate position based on container dimensions and box size
+        const xPos = (l * optimalRotation[0]) - (container.length / 2) + (optimalRotation[0] / 2);
+        const yPos = (h * optimalRotation[1]) - (container.height / 2) + (optimalRotation[1] / 2);
+        const zPos = (w * optimalRotation[2]) - (container.width / 2) + (optimalRotation[2] / 2);
 
         boxes.push(
           <Box
             key={`${l}-${w}-${h}`}
             position={[xPos, yPos, zPos] as [number, number, number]}
-            size={optimalRotation}
+            size={optimalRotation as [number, number, number]}
             color={generateVariedColor(baseHue, boxIndex)}
           />
         );

@@ -9,28 +9,29 @@ export function basicAlgorithm(boxDim: BoxDimensions, container: Container): Cal
   };
 
   // Try all possible rotations and take the best result
+  // Order matches Scene.tsx rotations array
   const rotations = [
-    [boxInMeters.length, boxInMeters.width, boxInMeters.height],
-    [boxInMeters.width, boxInMeters.length, boxInMeters.height],
     [boxInMeters.length, boxInMeters.height, boxInMeters.width],
-    [boxInMeters.height, boxInMeters.length, boxInMeters.width],
     [boxInMeters.width, boxInMeters.height, boxInMeters.length],
+    [boxInMeters.length, boxInMeters.width, boxInMeters.height],
     [boxInMeters.height, boxInMeters.width, boxInMeters.length],
+    [boxInMeters.width, boxInMeters.length, boxInMeters.height],
+    [boxInMeters.height, boxInMeters.length, boxInMeters.width],
   ];
 
   let maxBoxes = 0;
   let bestFit = { lengthFit: 0, widthFit: 0, heightFit: 0 };
 
-  rotations.forEach(([l, w, h]) => {
+  rotations.forEach(([l, h, w]) => {
     const lengthFit = Math.floor(container.length / l);
-    const widthFit = Math.floor(container.width / w);
     const heightFit = Math.floor(container.height / h);
+    const widthFit = Math.floor(container.width / w);
     
-    const totalBoxes = lengthFit * widthFit * heightFit;
+    const totalBoxes = lengthFit * heightFit * widthFit;
     
     if (totalBoxes > maxBoxes) {
       maxBoxes = totalBoxes;
-      bestFit = { lengthFit, widthFit, heightFit };
+      bestFit = { lengthFit, heightFit, widthFit };
     }
   });
 
