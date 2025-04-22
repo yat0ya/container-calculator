@@ -34,7 +34,7 @@ export const ALGORITHMS: AlgorithmOption[] = [
   // },
   {
     id: 'recursive',
-    name: 'Recursive',
+    name: 'Toya (Recursive)',
     description: 'Recursively fills spaces with optimal box arrangements',
   },
 ];
