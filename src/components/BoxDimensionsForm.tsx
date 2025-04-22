@@ -10,6 +10,7 @@ interface BoxDimensionsFormProps {
   onDimensionsChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onAlgorithmChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
   onContainerChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
+  onCalculate: () => void;
 }
 
 export function BoxDimensionsForm({
@@ -18,7 +19,8 @@ export function BoxDimensionsForm({
   selectedContainer,
   onDimensionsChange,
   onAlgorithmChange,
-  onContainerChange
+  onContainerChange,
+  onCalculate
 }: BoxDimensionsFormProps) {
   return (
     <>
@@ -62,7 +64,7 @@ export function BoxDimensionsForm({
         </div>
 
         <h2 className="text-lg font-semibold text-gray-700 mb-4">Box Dimensions (cm)</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <div>
             <label className="block text-sm font-medium text-gray-600 mb-1">Length</label>
             <input
@@ -94,6 +96,14 @@ export function BoxDimensionsForm({
             />
           </div>
         </div>
+
+        <button
+          onClick={onCalculate}
+          className="w-full bg-blue-600 text-white py-3 rounded-md hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+        >
+          <Calculator className="w-5 h-5" />
+          Calculate
+        </button>
       </div>
     </>
   );

@@ -2,10 +2,12 @@ import React, { useState } from 'react';
 import { BoxDimensionsForm } from './components/BoxDimensionsForm';
 import { CalculationResults } from './components/CalculationResults';
 import { VisualizationModal } from './components/VisualizationModal';
-import { Algorithm, BoxDimensions, Container } from './types';
+import { Algorithm, BoxDimensions, Container, CalculationResult } from './types';
 import { basicAlgorithm } from './algorithms/basic';
 import { skylineAlgorithm } from './algorithms/skyline';
 import { guillotineAlgorithm } from './algorithms/guillotine';
+import { greedyAlgorithm } from './algorithms/greedy';
+import { recursiveAlgorithm } from './algorithms/recursive';
 import { DEFAULT_CONTAINER, CONTAINERS } from './constants';
 
 function App() {
@@ -17,6 +19,7 @@ function App() {
   const [selectedAlgorithm, setSelectedAlgorithm] = useState<Algorithm>('basic');
   const [selectedContainer, setSelectedContainer] = useState<Container>(DEFAULT_CONTAINER);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [result, setResult] = useState<CalculationResult | null>(null);
 
   const calculateResult = () => {
     const algorithm = (() => {
@@ -25,15 +28,18 @@ function App() {
           return skylineAlgorithm;
         case 'guillotine':
           return guillotineAlgorithm;
+        case 'greedy':
+          return greedyAlgorithm;
+        case 'recursive':
+          return recursiveAlgorithm;
         default:
           return basicAlgorithm;
       }
     })();
 
-    return algorithm(boxDimensions, selectedContainer);
+    const newResult = algorithm(boxDimensions, selectedContainer);
+    setResult(newResult);
   };
-
-  const result = calculateResult();
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -45,12 +51,14 @@ function App() {
 
   const handleAlgorithmChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setSelectedAlgorithm(e.target.value as Algorithm);
+    setResult(null);
   };
 
   const handleContainerChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const containerId = e.target.value;
     const container = CONTAINERS.find(c => c.id === containerId) || DEFAULT_CONTAINER;
     setSelectedContainer(container);
+    setResult(null);
   };
 
   return (
@@ -64,23 +72,28 @@ function App() {
             onAlgorithmChange={handleAlgorithmChange}
             selectedContainer={selectedContainer}
             onContainerChange={handleContainerChange}
+            onCalculate={calculateResult}
           />
-          <CalculationResults
-            result={result}
-            onVisualize={() => setIsModalOpen(true)}
-            selectedAlgorithm={selectedAlgorithm}
-            container={selectedContainer}
-          />
+          {result && (
+            <CalculationResults
+              result={result}
+              onVisualize={() => setIsModalOpen(true)}
+              selectedAlgorithm={selectedAlgorithm}
+              container={selectedContainer}
+            />
+          )}
         </div>
       </div>
 
-      <VisualizationModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        result={result}
-        boxDimensions={boxDimensions}
-        container={selectedContainer}
-      />
+      {result && (
+        <VisualizationModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          result={result}
+          boxDimensions={boxDimensions}
+          container={selectedContainer}
+        />
+      )}
     </div>
   );
 }

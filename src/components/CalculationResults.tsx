@@ -17,7 +17,7 @@ export function CalculationResults({ result, onVisualize, selectedAlgorithm, con
           <Package className="w-5 h-5 text-blue-600" />
           <h2 className="text-lg font-semibold text-gray-700">Results for {container.name}</h2>
         </div>
-        {selectedAlgorithm === 'basic' && (
+        {(selectedAlgorithm === 'basic' || selectedAlgorithm === 'greedy' || selectedAlgorithm === 'recursive') && (
           <button
             onClick={onVisualize}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
