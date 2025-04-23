@@ -35,6 +35,20 @@ export function recursiveAlgorithm(boxDim: BoxDimensions, container: Container):
     [boxInMeters.height, boxInMeters.length, boxInMeters.width],
   ];
 
+  const minBoxDimension = Math.min(
+    boxInMeters.length,
+    boxInMeters.width,
+    boxInMeters.height
+  );
+
+  function isSpaceUsable(space: Space): boolean {
+    return (
+      space.dimensions.length >= minBoxDimension &&
+      space.dimensions.width >= minBoxDimension &&
+      space.dimensions.height >= minBoxDimension
+    );
+  }
+
   function tryRotation(space: Space, rotation: [number, number, number]): PackingResult {
     const lengthFit = Math.floor(space.dimensions.length / rotation[0]);
     const heightFit = Math.floor(space.dimensions.height / rotation[1]);
@@ -44,6 +58,8 @@ export function recursiveAlgorithm(boxDim: BoxDimensions, container: Container):
     if (totalBoxes === 0) return { totalBoxes: 0, placements: [] };
 
     const placements: BoxPlacement[] = [];
+    
+    // Pack boxes tightly without gaps
     for (let l = 0; l < lengthFit; l++) {
       for (let h = 0; h < heightFit; h++) {
         for (let w = 0; w < widthFit; w++) {
@@ -63,7 +79,10 @@ export function recursiveAlgorithm(boxDim: BoxDimensions, container: Container):
   }
 
   function packSpace(space: Space): PackingResult {
-    // Try all rotations in the current space
+    if (!isSpaceUsable(space)) {
+      return { totalBoxes: 0, placements: [] };
+    }
+
     let bestResult: PackingResult = { totalBoxes: 0, placements: [] };
 
     for (const rotation of rotations) {
@@ -76,27 +95,10 @@ export function recursiveAlgorithm(boxDim: BoxDimensions, container: Container):
         width: Math.floor(space.dimensions.width / rotation[2]) * rotation[2],
       };
 
-      // Calculate remaining spaces
       const remainingSpaces: Space[] = [];
 
-      // Space above
-      if (space.dimensions.height - usedSpace.height >= Math.min(...rotations.map(r => Math.min(...r)))) {
-        remainingSpaces.push({
-          position: {
-            x: space.position.x,
-            y: space.position.y + usedSpace.height,
-            z: space.position.z,
-          },
-          dimensions: {
-            length: usedSpace.length,
-            width: usedSpace.width,
-            height: space.dimensions.height - usedSpace.height,
-          },
-        });
-      }
-
-      // Space to the right
-      if (space.dimensions.length - usedSpace.length >= Math.min(...rotations.map(r => Math.min(...r)))) {
+      // First, try to fill the space to the right
+      if (space.dimensions.length - usedSpace.length >= minBoxDimension) {
         remainingSpaces.push({
           position: {
             x: space.position.x + usedSpace.length,
@@ -105,14 +107,14 @@ export function recursiveAlgorithm(boxDim: BoxDimensions, container: Container):
           },
           dimensions: {
             length: space.dimensions.length - usedSpace.length,
-            width: usedSpace.width,
+            width: space.dimensions.width,
             height: usedSpace.height,
           },
         });
       }
 
-      // Space to the front
-      if (space.dimensions.width - usedSpace.width >= Math.min(...rotations.map(r => Math.min(...r)))) {
+      // Then try the space in front
+      if (space.dimensions.width - usedSpace.width >= minBoxDimension) {
         remainingSpaces.push({
           position: {
             x: space.position.x,
@@ -127,7 +129,22 @@ export function recursiveAlgorithm(boxDim: BoxDimensions, container: Container):
         });
       }
 
-      // Try to fill remaining spaces
+      // Finally, try the space above
+      if (space.dimensions.height - usedSpace.height >= minBoxDimension) {
+        remainingSpaces.push({
+          position: {
+            x: space.position.x,
+            y: space.position.y + usedSpace.height,
+            z: space.position.z,
+          },
+          dimensions: {
+            length: space.dimensions.length,
+            width: space.dimensions.width,
+            height: space.dimensions.height - usedSpace.height,
+          },
+        });
+      }
+
       let totalBoxesWithRemaining = mainResult.totalBoxes;
       const additionalPlacements: BoxPlacement[] = [];
 
@@ -137,7 +154,6 @@ export function recursiveAlgorithm(boxDim: BoxDimensions, container: Container):
         additionalPlacements.push(...remainingResult.placements);
       }
 
-      // Update best result if current rotation yields more boxes
       if (totalBoxesWithRemaining > bestResult.totalBoxes) {
         bestResult = {
           totalBoxes: totalBoxesWithRemaining,
@@ -149,7 +165,6 @@ export function recursiveAlgorithm(boxDim: BoxDimensions, container: Container):
     return bestResult;
   }
 
-  // Start with the entire container
   const result = packSpace({
     position: { x: 0, y: 0, z: 0 },
     dimensions: {
@@ -163,7 +178,7 @@ export function recursiveAlgorithm(boxDim: BoxDimensions, container: Container):
     totalBoxes: result.totalBoxes,
     boxInMeters,
     placements: result.placements,
-    lengthFit: 0,  // These are not used when placements are provided
+    lengthFit: 0,
     widthFit: 0,
     heightFit: 0,
   };
