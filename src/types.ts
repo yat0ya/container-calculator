@@ -33,7 +33,7 @@ export interface CalculationResult {
   placements?: BoxPlacement[];
 }
 
-export type Algorithm = 'basic' | 'skyline' | 'guillotine' | 'greedy' | 'recursive';
+export type Algorithm = 'basic' | 'recursive';
 
 export interface AlgorithmOption {
   id: Algorithm;

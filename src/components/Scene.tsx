@@ -89,7 +89,7 @@ export function Scene({ result, boxDimensions, container }: SceneProps) {
 
   // Calculate camera distance based on container size
   const maxDimension = Math.max(container.length, container.width, container.height);
-  const cameraDistance = maxDimension * 2;
+  const cameraDistance = maxDimension*0.8;
 
   return (
     <>

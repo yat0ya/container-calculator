@@ -4,48 +4,33 @@ import { CalculationResults } from './components/CalculationResults';
 import { VisualizationModal } from './components/VisualizationModal';
 import { Algorithm, BoxDimensions, Container, CalculationResult } from './types';
 import { basicAlgorithm } from './algorithms/basic';
-import { skylineAlgorithm } from './algorithms/skyline';
-import { guillotineAlgorithm } from './algorithms/guillotine';
-import { greedyAlgorithm } from './algorithms/greedy';
 import { recursiveAlgorithm } from './algorithms/recursive';
 import { DEFAULT_CONTAINER, CONTAINERS } from './constants';
 
 function App() {
   const [boxDimensions, setBoxDimensions] = useState<BoxDimensions>({
-    length: 50,
-    width: 40,
+    length: 120,
+    width: 70,
     height: 30,
   });
-  const [selectedAlgorithm, setSelectedAlgorithm] = useState<Algorithm>('basic');
+  const [selectedAlgorithm, setSelectedAlgorithm] = useState<Algorithm>('recursive');
   const [selectedContainer, setSelectedContainer] = useState<Container>(DEFAULT_CONTAINER);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [result, setResult] = useState<CalculationResult | null>(null);
+  const [isCalculating, setIsCalculating] = useState(false);
 
   const calculateResult = () => {
-    const algorithm = (() => {
-      switch (selectedAlgorithm) {
-        case 'skyline':
-          return skylineAlgorithm;
-        case 'guillotine':
-          return guillotineAlgorithm;
-        case 'greedy':
-          return greedyAlgorithm;
-        case 'recursive':
-          return recursiveAlgorithm;
-        default:
-          return basicAlgorithm;
-      }
-    })();
-
+    const algorithm = selectedAlgorithm === 'basic' ? basicAlgorithm : recursiveAlgorithm;
     const newResult = algorithm(boxDimensions, selectedContainer);
     setResult(newResult);
+    setIsCalculating(false);
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
+    setResult(null);
     setBoxDimensions(prev => ({
       ...prev,
-      [name]: parseFloat(value) || 0,
+      [e.target.name]: parseFloat(e.target.value) || 0,
     }));
   };
 
@@ -72,9 +57,12 @@ function App() {
             onAlgorithmChange={handleAlgorithmChange}
             selectedContainer={selectedContainer}
             onContainerChange={handleContainerChange}
-            onCalculate={calculateResult}
+            onCalculate={() => {
+              setIsCalculating(true);
+              calculateResult();
+            }}
           />
-          {result && (
+          {result && !isCalculating && (
             <CalculationResults
               result={result}
               onVisualize={() => setIsModalOpen(true)}

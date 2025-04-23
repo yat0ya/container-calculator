@@ -13,28 +13,13 @@ export const DEFAULT_CONTAINER = CONTAINERS[0];
 
 export const ALGORITHMS: AlgorithmOption[] = [
   {
-    id: 'basic',
-    name: 'Basic (No Rotations)',
-    description: 'Simple algorithm that calculates box fit without any rotations',
-  },
-  // {
-  //   id: 'skyline',
-  //   name: 'Skyline',
-  //   description: 'Advanced algorithm that allows individual box rotations for optimal fit',
-  // },
-  // {
-  //   id: 'guillotine',
-  //   name: 'Guillotine',
-  //   description: 'Uses guillotine cuts with box rotations for efficient packing',
-  // },
-  // {
-  //   id: 'greedy',
-  //   name: 'Greedy',
-  //   description: 'Places boxes one at a time, trying all rotations at each position',
-  // },
-  {
     id: 'recursive',
     name: 'Toya (Recursive)',
     description: 'Recursively fills spaces with optimal box arrangements',
+  },
+  {
+    id: 'basic',
+    name: 'Basic',
+    description: 'Simple algorithm that calculates box fit without rotations',
   },
 ];
