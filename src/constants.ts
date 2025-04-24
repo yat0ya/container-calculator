@@ -14,7 +14,7 @@ export const DEFAULT_CONTAINER = CONTAINERS[0];
 export const ALGORITHMS: AlgorithmOption[] = [
   {
     id: 'recursive',
-    name: 'Toya (Recursive)',
+    name: 'Toya Plugger (Recursive)',
     description: 'Recursively fills spaces with optimal box arrangements',
   },
   {
