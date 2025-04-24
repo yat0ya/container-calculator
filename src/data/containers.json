@@ -55,6 +55,14 @@
       "width": 2347,
       "height": 2690,
       "maxLoad": 28390
+    },
+    {
+      "id": "20DD",
+      "name": "Kontener 20' SPN Logistics",
+      "length": 5900,
+      "width": 2350,
+      "height": 2390,
+      "maxLoad": 25000
     }
   ]
 }
