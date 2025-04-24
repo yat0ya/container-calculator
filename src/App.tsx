@@ -12,6 +12,8 @@ function App() {
     length: 120,
     width: 70,
     height: 30,
+    weight: undefined,
+    value: undefined,
   });
   const [selectedAlgorithm, setSelectedAlgorithm] = useState<Algorithm>('recursive');
   const [selectedContainer, setSelectedContainer] = useState<Container>(DEFAULT_CONTAINER);
@@ -22,15 +24,37 @@ function App() {
   const calculateResult = () => {
     const algorithm = selectedAlgorithm === 'basic' ? basicAlgorithm : recursiveAlgorithm;
     const newResult = algorithm(boxDimensions, selectedContainer);
+    
+    // Add weight and value calculations
+    if (boxDimensions.weight !== undefined) {
+      newResult.totalWeight = newResult.totalBoxes * boxDimensions.weight;
+      // Calculate max possible boxes based on weight
+      newResult.maxPossibleBoxes = newResult.totalBoxes;
+      // Adjust total boxes if weight limit is exceeded
+      if (newResult.totalWeight > selectedContainer.maxLoad) {
+        const maxBoxes = Math.floor(selectedContainer.maxLoad / boxDimensions.weight);
+        newResult.totalBoxes = maxBoxes;
+        newResult.totalWeight = maxBoxes * boxDimensions.weight;
+        if (newResult.placements) {
+          newResult.placements = newResult.placements.slice(0, maxBoxes);
+        }
+      }
+    }
+    
+    if (boxDimensions.value !== undefined) {
+      newResult.totalValue = newResult.totalBoxes * boxDimensions.value;
+    }
+    
     setResult(newResult);
     setIsCalculating(false);
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setResult(null);
+    const value = e.target.value === '' ? undefined : parseFloat(e.target.value);
     setBoxDimensions(prev => ({
       ...prev,
-      [e.target.name]: parseFloat(e.target.value) || 0,
+      [e.target.name]: value,
     }));
   };
 

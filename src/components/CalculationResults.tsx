@@ -10,6 +10,9 @@ interface CalculationResultsProps {
 }
 
 export function CalculationResults({ result, onVisualize, container }: CalculationResultsProps) {
+  const isWeightRestricted = result.totalWeight !== undefined && 
+    result.totalWeight >= container.maxLoad * 0.99; // Using 0.99 to account for floating point precision
+
   return (
     <div className="bg-blue-50 rounded-lg p-6">
       <div className="flex items-center justify-between mb-4">
@@ -26,9 +29,33 @@ export function CalculationResults({ result, onVisualize, container }: Calculati
         </button>
       </div>
       
-      <div>
-        <h3 className="text-sm font-medium text-gray-600 mb-2">Total Capacity</h3>
-        <p className="text-3xl font-bold text-blue-600">{result.totalBoxes} boxes</p>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+        <div>
+          <h3 className="text-sm font-medium text-gray-600 mb-1">Total Capacity</h3>
+          <p className={`text-3xl font-bold ${isWeightRestricted ? 'text-red-600' : 'text-blue-600'}`}>
+            {result.totalBoxes} boxes
+          </p>
+          {isWeightRestricted && (
+            <p className="text-sm text-gray-500">Max: {result.maxPossibleBoxes} boxes</p>
+          )}
+        </div>
+        
+        {result.totalWeight !== undefined && (
+          <div>
+            <h3 className="text-sm font-medium text-gray-600 mb-1">Total Weight</h3>
+            <p className={`text-3xl font-bold ${isWeightRestricted ? 'text-red-600' : 'text-blue-600'}`}>
+              {result.totalWeight.toFixed(1)} kg
+            </p>
+            <p className="text-sm text-gray-500">Max: {container.maxLoad} kg</p>
+          </div>
+        )}
+        
+        {result.totalValue !== undefined && (
+          <div className="md:col-span-2 mt-2">
+            <h3 className="text-sm font-medium text-gray-600 mb-1">Total Value</h3>
+            <p className="text-3xl font-bold text-blue-600">{result.totalValue.toLocaleString()}</p>
+          </div>
+        )}
       </div>
     </div>
   );

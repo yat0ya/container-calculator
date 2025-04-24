@@ -16,9 +16,9 @@ export function VisualizationModal({ isOpen, onClose, result, boxDimensions, con
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl p-6 max-w-6xl w-full mx-4 h-[80vh]">
-        <div className="flex justify-between items-center mb-6">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl w-full max-w-6xl h-[90vh] flex flex-col">
+        <div className="flex justify-between items-center p-4 md:p-6 border-b">
           <h2 className="text-xl font-bold text-gray-800">3D Container Visualization</h2>
           <button
             onClick={onClose}
@@ -28,7 +28,7 @@ export function VisualizationModal({ isOpen, onClose, result, boxDimensions, con
           </button>
         </div>
 
-        <div className="h-[calc(100%-8rem)]">
+        <div className="flex-1 min-h-0">
           <Suspense fallback={<div className="flex items-center justify-center h-full">Loading 3D view...</div>}>
             <Canvas>
               <Scene result={result} boxDimensions={boxDimensions} container={container} />
@@ -36,18 +36,18 @@ export function VisualizationModal({ isOpen, onClose, result, boxDimensions, con
           </Suspense>
         </div>
 
-        <div className="mt-6 bg-gray-50 p-4 rounded-lg">
-          <h3 className="text-sm font-medium text-gray-600 mb-2">Container Specifications</h3>
-          <div className="grid grid-cols-2 gap-4">
+        <div className="bg-gray-50 p-4 rounded-b-xl border-t">
+          <h3 className="text-sm font-medium text-gray-600 mb-3">Container Specifications</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <p className="text-sm text-gray-600">Box Dimensions:</p>
-              <p className="text-sm text-gray-800">
+              <p className="text-sm text-gray-600 mb-1">Box Dimensions:</p>
+              <p className="text-sm text-gray-800 whitespace-nowrap">
                 {boxDimensions.length} × {boxDimensions.width} × {boxDimensions.height} cm
               </p>
             </div>
             <div>
-              <p className="text-sm text-gray-600">Container Dimensions:</p>
-              <p className="text-sm text-gray-800">
+              <p className="text-sm text-gray-600 mb-1">Container Dimensions:</p>
+              <p className="text-sm text-gray-800 whitespace-nowrap">
                 {container.length.toFixed(2)} × {container.width.toFixed(2)} × {container.height.toFixed(2)} m
               </p>
             </div>

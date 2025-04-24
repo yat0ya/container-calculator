@@ -4,6 +4,8 @@ export interface BoxDimensions {
   length: number;
   width: number;
   height: number;
+  weight?: number;
+  value?: number;
 }
 
 export interface Container {
@@ -31,6 +33,9 @@ export interface CalculationResult {
   totalBoxes: number;
   boxInMeters: BoxDimensions;
   placements?: BoxPlacement[];
+  totalValue?: number;
+  totalWeight?: number;
+  maxPossibleBoxes?: number;
 }
 
 export type Algorithm = 'basic' | 'recursive';

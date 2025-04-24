@@ -21,6 +21,7 @@ export function basicAlgorithm(boxDim: BoxDimensions, container: Container): Cal
 
   let maxBoxes = 0;
   let bestFit = { lengthFit: 0, widthFit: 0, heightFit: 0 };
+  let bestRotation: [number, number, number] | null = null;
 
   rotations.forEach(([l, h, w]) => {
     const lengthFit = Math.floor(container.length / l);
@@ -32,12 +33,58 @@ export function basicAlgorithm(boxDim: BoxDimensions, container: Container): Cal
     if (totalBoxes > maxBoxes) {
       maxBoxes = totalBoxes;
       bestFit = { lengthFit, heightFit, widthFit };
+      bestRotation = [l, h, w];
     }
   });
 
+  // Generate placements for visualization
+  const placements = [];
+  if (bestRotation) {
+    const [l, h, w] = bestRotation;
+    for (let x = 0; x < bestFit.lengthFit; x++) {
+      for (let y = 0; y < bestFit.heightFit; y++) {
+        for (let z = 0; z < bestFit.widthFit; z++) {
+          placements.push({
+            position: {
+              x: x * l,
+              y: y * h,
+              z: z * w,
+            },
+            rotation: bestRotation,
+          });
+        }
+      }
+    }
+  }
+
+  // Calculate weight-based restrictions if weight is provided
+  let totalBoxes = maxBoxes;
+  let totalWeight;
+  let maxPossibleBoxes;
+
+  if (boxDim.weight !== undefined) {
+    totalWeight = maxBoxes * boxDim.weight;
+    maxPossibleBoxes = maxBoxes;
+
+    if (totalWeight > container.maxLoad) {
+      maxPossibleBoxes = maxBoxes;
+      totalBoxes = Math.floor(container.maxLoad / boxDim.weight);
+      totalWeight = totalBoxes * boxDim.weight;
+      // Trim placements to match the weight restriction
+      placements.length = totalBoxes;
+    }
+  }
+
+  // Calculate total value if provided
+  const totalValue = boxDim.value !== undefined ? totalBoxes * boxDim.value : undefined;
+
   return {
     ...bestFit,
-    totalBoxes: maxBoxes,
+    totalBoxes,
     boxInMeters,
+    placements,
+    totalWeight,
+    totalValue,
+    maxPossibleBoxes,
   };
 }
