@@ -2,6 +2,7 @@ import React from 'react';
 import { Calculator } from 'lucide-react';
 import { Algorithm, BoxDimensions, Container } from '../types';
 import { ALGORITHMS, CONTAINERS } from '../constants';
+import { version } from '../../package.json';
 
 interface BoxDimensionsFormProps {
   boxDimensions: BoxDimensions;
@@ -24,9 +25,12 @@ export function BoxDimensionsForm({
 }: BoxDimensionsFormProps) {
   return (
     <>
-      <div className="flex items-center gap-2 mb-6">
-        <Calculator className="w-6 h-6 text-blue-600" />
-        <h1 className="text-2xl font-bold text-gray-800">Container Loading Calculator</h1>
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-2">
+          <Calculator className="w-6 h-6 text-blue-600" />
+          <h1 className="text-2xl font-bold text-gray-800">Container Loading Calculator</h1>
+        </div>
+        <div className="text-sm text-gray-500">v{version}</div>
       </div>
 
       <div className="mb-8">
