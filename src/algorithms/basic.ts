@@ -17,13 +17,14 @@ export function basicAlgorithm(boxDim: BoxDimensions, container: Container): Cal
     [boxInMeters.height, boxInMeters.width, boxInMeters.length],
     [boxInMeters.width, boxInMeters.length, boxInMeters.height],
     [boxInMeters.height, boxInMeters.length, boxInMeters.width],
-  ];
+  ] as [number, number, number][];
 
   let maxBoxes = 0;
   let bestFit = { lengthFit: 0, widthFit: 0, heightFit: 0 };
-  let bestRotation: [number, number, number] | null = null;
+  let bestRotation = rotations[0];
 
-  rotations.forEach(([l, h, w]) => {
+  rotations.forEach((rotation) => {
+    const [l, h, w] = rotation;
     const lengthFit = Math.floor(container.length / l);
     const heightFit = Math.floor(container.height / h);
     const widthFit = Math.floor(container.width / w);
@@ -33,26 +34,25 @@ export function basicAlgorithm(boxDim: BoxDimensions, container: Container): Cal
     if (totalBoxes > maxBoxes) {
       maxBoxes = totalBoxes;
       bestFit = { lengthFit, heightFit, widthFit };
-      bestRotation = [l, h, w];
+      bestRotation = rotation;
     }
   });
 
   // Generate placements for visualization
   const placements = [];
-  if (bestRotation) {
-    const [l, h, w] = bestRotation;
-    for (let x = 0; x < bestFit.lengthFit; x++) {
-      for (let y = 0; y < bestFit.heightFit; y++) {
-        for (let z = 0; z < bestFit.widthFit; z++) {
-          placements.push({
-            position: {
-              x: x * l,
-              y: y * h,
-              z: z * w,
-            },
-            rotation: bestRotation,
-          });
-        }
+  const [l, h, w] = bestRotation;
+  
+  for (let x = 0; x < bestFit.lengthFit; x++) {
+    for (let y = 0; y < bestFit.heightFit; y++) {
+      for (let z = 0; z < bestFit.widthFit; z++) {
+        placements.push({
+          position: {
+            x: x * l,
+            y: y * h,
+            z: z * w,
+          },
+          rotation: bestRotation,
+        });
       }
     }
   }

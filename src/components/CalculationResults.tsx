@@ -1,4 +1,3 @@
-import React from 'react';
 import { Package, Eye } from 'lucide-react';
 import { Algorithm, CalculationResult, Container } from '../types';
 
@@ -10,8 +9,8 @@ interface CalculationResultsProps {
 }
 
 export function CalculationResults({ result, onVisualize, container }: CalculationResultsProps) {
-  const isWeightRestricted = result.totalWeight !== undefined && 
-    result.totalWeight >= container.maxLoad * 0.99; // Using 0.99 to account for floating point precision
+  const isWeightRestricted = result.maxPossibleBoxes !== undefined && 
+    result.totalBoxes < result.maxPossibleBoxes;
 
   return (
     <div className="bg-blue-50 rounded-lg p-6">
@@ -35,8 +34,8 @@ export function CalculationResults({ result, onVisualize, container }: Calculati
           <p className={`text-3xl font-bold ${isWeightRestricted ? 'text-red-600' : 'text-blue-600'}`}>
             {result.totalBoxes} boxes
           </p>
-          {isWeightRestricted && (
-            <p className="text-sm text-gray-500">Max: {result.maxPossibleBoxes} boxes</p>
+          {isWeightRestricted && result.maxPossibleBoxes && (
+            <p className="text-sm text-gray-500">Max without weight limit: {result.maxPossibleBoxes} boxes</p>
           )}
         </div>
         
@@ -44,7 +43,7 @@ export function CalculationResults({ result, onVisualize, container }: Calculati
           <div>
             <h3 className="text-sm font-medium text-gray-600 mb-1">Total Weight</h3>
             <p className={`text-3xl font-bold ${isWeightRestricted ? 'text-red-600' : 'text-blue-600'}`}>
-              {result.totalWeight.toFixed(1)} kg
+              {Math.round(result.totalWeight)} kg
             </p>
             <p className="text-sm text-gray-500">Max: {container.maxLoad} kg</p>
           </div>

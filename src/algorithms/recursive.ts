@@ -1,5 +1,4 @@
 import { BoxDimensions, CalculationResult, Container, BoxPlacement } from '../types';
-import { basicAlgorithm } from './basic';
 
 interface Space {
   position: {

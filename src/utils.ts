@@ -1,5 +1,3 @@
-import { BoxDimensions } from './types';
-
 // Generate a slightly varied color based on a base color
 export function generateVariedColor(baseHue: number, index: number): string {
   const hue = (baseHue + index * 5) % 360;

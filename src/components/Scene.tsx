@@ -10,7 +10,7 @@ interface SceneProps {
   container: ContainerType;
 }
 
-export function Scene({ result, boxDimensions, container }: SceneProps) {
+export function Scene({ result, container }: SceneProps) {
   const boxes = [];
   const { boxInMeters } = result;
   const baseHue = 210; // Base blue hue
