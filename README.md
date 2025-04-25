@@ -1,10 +1,10 @@
 # Container Calculator
 
-[Live Demo](http://tos21.tcn.toya.pl:8080/container-calculator/)
+[Live Version](http://tos21.tcn.toya.pl:8080/container-calculator/)
 
 ## Description
 
-Container Calculator is a powerful web application that helps users optimize cargo loading by calculating the maximum number of boxes that can fit into standard shipping containers. It features a 3D visualization of the loading pattern and supports multiple container types and calculation algorithms.
+Container Calculator is a powerful web application that helps users optimize cargo loading by calculating the maximum number of boxes that can fit into standard shipping containers. It features a 3D visualization of the loading pattern and supports multiple container types and 2 calculation algorithms.
 
 Key features:
 - Multiple container type support (20', 40', 45' etc.)
@@ -46,7 +46,7 @@ npm run build
 - Tailwind CSS
 - Lucide React (icons)
 
-## Recursive Algorithm
+## Recursive Algorithm (Toya Plugger)
 
 The recursive algorithm (Toya Plugger) implements a space-filling approach to maximize container utilization. Here's how it works:
 
@@ -71,5 +71,3 @@ The recursive algorithm (Toya Plugger) implements a space-filling approach to ma
    - Considers container weight limits
    - Adjusts the total box count if weight limits are exceeded
    - Maintains the optimal arrangement while respecting weight restrictions
-
-This approach typically yields better results than the basic algorithm, especially for complex loading scenarios with varied box dimensions.
