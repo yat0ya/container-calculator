@@ -3,66 +3,34 @@
     {
       "id": "20ST",
       "name": "Kontener 20'",
-      "length": 5758,
-      "width": 2352,
-      "height": 2385,
-      "maxLoad": 28200
-    },
-    {
-      "id": "20DC",
-      "name": "Kontener 20' DC",
-      "length": 5919,
+      "length": 5900,
       "width": 2340,
-      "height": 2380,
-      "maxLoad": 22100
-    },
-    {
-      "id": "20HC",
-      "name": "Kontener 20' HC",
-      "length": 5758,
-      "width": 2352,
-      "height": 2684,
-      "maxLoad": 29200
+      "height": 2390,
+      "maxLoad": 25000
     },
     {
       "id": "40ST",
       "name": "Kontener 40'",
-      "length": 12032,
-      "width": 2352,
-      "height": 2385,
-      "maxLoad": 26600
-    },
-    {
-      "id": "40DC",
-      "name": "Kontener 40' DC",
-      "length": 12051,
+      "length": 12030,
       "width": 2340,
-      "height": 2380,
-      "maxLoad": 27397
+      "height": 2390,
+      "maxLoad": 27600
     },
     {
       "id": "40HC",
-      "name": "Kontener 40' HC",
-      "length": 12117,
-      "width": 2388,
-      "height": 2694,
-      "maxLoad": 29600
+      "name": "Kontener 40'HC",
+      "length": 12030,
+      "width": 2340,
+      "height": 2700,
+      "maxLoad": 28600
     },
     {
       "id": "45HC",
-      "name": "Kontener 45' HC",
-      "length": 13582,
-      "width": 2347,
-      "height": 2690,
-      "maxLoad": 28390
-    },
-    {
-      "id": "20DD",
-      "name": "Kontener 20' SPN Logistics",
-      "length": 5900,
-      "width": 2350,
-      "height": 2390,
-      "maxLoad": 25000
+      "name": "Kontener 45'HC",
+      "length": 13550,
+      "width": 2340,
+      "height": 2700,
+      "maxLoad": 27700
     }
   ]
 }
