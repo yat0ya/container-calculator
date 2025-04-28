@@ -1,7 +1,7 @@
 {
   "containers": [
     {
-      "id": "20ST",
+      "id": "K20",
       "name": "Kontener 20'",
       "length": 5900,
       "width": 2340,
@@ -9,7 +9,7 @@
       "maxLoad": 25000
     },
     {
-      "id": "40ST",
+      "id": "K40",
       "name": "Kontener 40'",
       "length": 12030,
       "width": 2340,
@@ -17,7 +17,7 @@
       "maxLoad": 27600
     },
     {
-      "id": "40HC",
+      "id": "K40HC",
       "name": "Kontener 40'HC",
       "length": 12030,
       "width": 2340,
@@ -25,7 +25,7 @@
       "maxLoad": 28600
     },
     {
-      "id": "45HC",
+      "id": "K45HC",
       "name": "Kontener 45'HC",
       "length": 13550,
       "width": 2340,
