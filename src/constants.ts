@@ -13,6 +13,11 @@ export const DEFAULT_CONTAINER = CONTAINERS[0];
 
 export const ALGORITHMS: AlgorithmOption[] = [
   {
+    id: 'humanLike',
+    name: 'Human-Like Packing',
+    description: 'Packs boxes in layers like a human would, optimizing for minimal wall space',
+  },
+  {
     id: 'recursive',
     name: 'Toya Plugger (Recursive)',
     description: 'Recursively fills spaces with optimal box arrangements',

@@ -5,24 +5,36 @@ import { VisualizationModal } from './components/VisualizationModal';
 import { Algorithm, BoxDimensions, Container, CalculationResult } from './types';
 import { basicAlgorithm } from './algorithms/basic';
 import { recursiveAlgorithm } from './algorithms/recursive';
+import { humanLikeAlgorithm } from './algorithms/humanLike';
 import { DEFAULT_CONTAINER, CONTAINERS } from './constants';
 
 function App() {
   const [boxDimensions, setBoxDimensions] = useState<BoxDimensions>({
-    length: 120,
-    width: 70,
-    height: 30,
+    length: 79.4,
+    width: 49.1,
+    height: 87.0,
     weight: undefined,
     value: undefined,
   });
-  const [selectedAlgorithm, setSelectedAlgorithm] = useState<Algorithm>('recursive');
+  const [selectedAlgorithm, setSelectedAlgorithm] = useState<Algorithm>('humanLike');
   const [selectedContainer, setSelectedContainer] = useState<Container>(DEFAULT_CONTAINER);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [result, setResult] = useState<CalculationResult | null>(null);
   const [isCalculating, setIsCalculating] = useState(false);
 
   const calculateResult = () => {
-    const algorithm = selectedAlgorithm === 'basic' ? basicAlgorithm : recursiveAlgorithm;
+    let algorithm;
+    switch (selectedAlgorithm) {
+      case 'basic':
+        algorithm = basicAlgorithm;
+        break;
+      case 'humanLike':
+        algorithm = humanLikeAlgorithm;
+        break;
+      default:
+        algorithm = recursiveAlgorithm;
+    }
+    
     const newResult = algorithm(boxDimensions, selectedContainer);
     
     // Add weight and value calculations
@@ -110,4 +122,4 @@ function App() {
   );
 }
 
-export default App;
+export default App

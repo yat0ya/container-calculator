@@ -38,7 +38,7 @@ export interface CalculationResult {
   maxPossibleBoxes?: number;
 }
 
-export type Algorithm = 'basic' | 'recursive';
+export type Algorithm = 'basic' | 'recursive' | 'humanLike';
 
 export interface AlgorithmOption {
   id: Algorithm;
