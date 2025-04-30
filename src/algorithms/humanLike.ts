@@ -1,4 +1,5 @@
 import { BoxDimensions, CalculationResult, Container, BoxPlacement } from '../types';
+import { recursiveAlgorithm } from './recursive';
 
 interface CrossSectionConfig {
   mainRotation: [number, number, number];
@@ -82,57 +83,6 @@ export function humanLikeAlgorithm(boxDim: BoxDimensions, container: Container):
       height: rotation[1],
       width: rotation[2],
     });
-  }
-
-  // Recursive packing for remaining space
-  function packRemainingSpace(space: Space): BoxPlacement[] {
-    const placements: BoxPlacement[] = [];
-    let bestCount = 0;
-    let bestPlacements: BoxPlacement[] = [];
-
-    rotations.forEach(rotation => {
-      if (rotation[0] > space.dimensions.length ||
-          rotation[1] > space.dimensions.height ||
-          rotation[2] > space.dimensions.width) {
-        return;
-      }
-
-      const lengthFit = Math.floor(space.dimensions.length / rotation[0]);
-      const heightFit = Math.floor(space.dimensions.height / rotation[1]);
-      const widthFit = Math.floor(space.dimensions.width / rotation[2]);
-      
-      const currentPlacements: BoxPlacement[] = [];
-      let validBoxCount = 0;
-
-      for (let l = 0; l < lengthFit; l++) {
-        for (let h = 0; h < heightFit; h++) {
-          for (let w = 0; w < widthFit; w++) {
-            const position = {
-              x: space.position.x + l * rotation[0],
-              y: space.position.y + h * rotation[1],
-              z: space.position.z + w * rotation[2],
-            };
-
-            if (canPlaceBox(position, rotation)) {
-              currentPlacements.push({ position, rotation });
-              validBoxCount++;
-            }
-          }
-        }
-      }
-
-      if (validBoxCount > bestCount) {
-        bestCount = validBoxCount;
-        bestPlacements = currentPlacements;
-      }
-    });
-
-    placements.push(...bestPlacements);
-    bestPlacements.forEach(placement => {
-      addOccupiedSpace(placement.position, placement.rotation);
-    });
-
-    return placements;
   }
 
   function calculateCrossSectionArea(
@@ -248,27 +198,32 @@ export function humanLikeAlgorithm(boxDim: BoxDimensions, container: Container):
     }
   }
 
-  // Calculate remaining space dimensions
-  const usedLength = mainBoxesLength * bestConfig.mainRotation[0];
-  const remainingLength = container.length - usedLength;
+  // Fill Big Mama space using recursive algorithm
+  const lastBoxX = mainBoxesLength * bestConfig.mainRotation[0];
+  const bigMamaContainer: Container = {
+    ...container,
+    length: container.length - lastBoxX,
+  };
 
-  // Fill the remaining space using recursive packing
-  if (remainingLength > Math.min(...Object.values(boxInMeters))) {
-    const remainingSpace: Space = {
+  if (bigMamaContainer.length > Math.min(...Object.values(boxInMeters))) {
+    const bigMamaResult = recursiveAlgorithm(boxDim, bigMamaContainer);
+    
+    // Adjust positions of boxes from recursive algorithm to start after our existing boxes
+    const adjustedPlacements = bigMamaResult.placements?.map(placement => ({
+      ...placement,
       position: {
-        x: usedLength,
-        y: 0,
-        z: 0,
+        ...placement.position,
+        x: placement.position.x + lastBoxX,
       },
-      dimensions: {
-        length: remainingLength,
-        height: container.height,
-        width: container.width,
-      },
-    };
+    })) || [];
 
-    const remainingPlacements = packRemainingSpace(remainingSpace);
-    placements.push(...remainingPlacements);
+    // Add only boxes that don't overlap with existing ones
+    adjustedPlacements.forEach(placement => {
+      if (canPlaceBox(placement.position, placement.rotation)) {
+        placements.push(placement);
+        addOccupiedSpace(placement.position, placement.rotation);
+      }
+    });
   }
 
   return {
