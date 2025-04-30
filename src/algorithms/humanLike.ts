@@ -62,6 +62,18 @@ export function humanLikeAlgorithm(boxDim: BoxDimensions, container: Container):
   }
 
   function canPlaceBox(position: { x: number; y: number; z: number }, rotation: [number, number, number]): boolean {
+    // Check if box is within container bounds
+    if (
+      position.x + rotation[0] > container.length ||
+      position.y + rotation[1] > container.height ||
+      position.z + rotation[2] > container.width ||
+      position.x < 0 ||
+      position.y < 0 ||
+      position.z < 0
+    ) {
+      return false;
+    }
+
     const newBox: BoxSpace = {
       x: position.x,
       y: position.y,
@@ -83,6 +95,118 @@ export function humanLikeAlgorithm(boxDim: BoxDimensions, container: Container):
       height: rotation[1],
       width: rotation[2],
     });
+  }
+
+  function findEmptySpaces(): BoxPlacement[] {
+    const placements: BoxPlacement[] = [];
+    const minBoxDimension = Math.min(
+      boxInMeters.length,
+      boxInMeters.width,
+      boxInMeters.height
+    );
+    const step = minBoxDimension / 4; // Smaller step size for more thorough search
+    
+    // Sort occupied spaces by position for more efficient searching
+    const sortedSpaces = [...occupiedSpaces].sort((a, b) => 
+      a.x - b.x || a.y - b.y || a.z - b.z
+    );
+    
+    // Find potential placement points near existing boxes
+    const potentialPoints = new Set<string>();
+    
+    // First, focus on vertical spaces above existing boxes
+    sortedSpaces.forEach(space => {
+      const topY = space.y + space.height;
+      if (topY < container.height) {
+        // Check multiple points above each box
+        for (let x = space.x; x <= space.x + space.length; x += step) {
+          for (let z = space.z; z <= space.z + space.width; z += step) {
+            potentialPoints.add(`${x},${topY},${z}`);
+          }
+        }
+      }
+    });
+
+    // Then check points around each occupied space
+    sortedSpaces.forEach(space => {
+      for (let dx = -1; dx <= 1; dx++) {
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dz = -1; dz <= 1; dz++) {
+            if (dx === 0 && dy === 0 && dz === 0) continue;
+            
+            const x = space.x + dx * step;
+            const y = space.y + dy * step;
+            const z = space.z + dz * step;
+            
+            potentialPoints.add(`${x},${y},${z}`);
+          }
+        }
+      }
+    });
+
+    // Try placing boxes at potential points
+    potentialPoints.forEach(point => {
+      const [x, y, z] = point.split(',').map(Number);
+      
+      // Try vertical orientations first
+      const verticalRotations = rotations.filter(r => r[1] === Math.max(...r));
+      for (const rotation of verticalRotations) {
+        if (canPlaceBox({ x, y, z }, rotation)) {
+          placements.push({
+            position: { x, y, z },
+            rotation,
+          });
+          addOccupiedSpace({ x, y, z }, rotation);
+          return;
+        }
+      }
+
+      // Try other rotations if vertical placement failed
+      for (const rotation of rotations) {
+        if (canPlaceBox({ x, y, z }, rotation)) {
+          placements.push({
+            position: { x, y, z },
+            rotation,
+          });
+          addOccupiedSpace({ x, y, z }, rotation);
+          return;
+        }
+      }
+    });
+
+    // Additional sweep for any remaining spaces
+    for (let x = 0; x < container.length; x += step) {
+      for (let y = 0; y < container.height; y += step) {
+        for (let z = 0; z < container.width; z += step) {
+          // Try vertical orientations first
+          const verticalRotations = rotations.filter(r => r[1] === Math.max(...r));
+          for (const rotation of verticalRotations) {
+            if (canPlaceBox({ x, y, z }, rotation)) {
+              placements.push({
+                position: { x, y, z },
+                rotation,
+              });
+              addOccupiedSpace({ x, y, z }, rotation);
+              break;
+            }
+          }
+
+          // Try other rotations if vertical placement failed
+          for (const rotation of rotations) {
+            if (canPlaceBox({ x, y, z }, rotation)) {
+              placements.push({
+                position: { x, y, z },
+                rotation,
+              });
+              addOccupiedSpace({ x, y, z }, rotation);
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    return placements;
   }
 
   function calculateCrossSectionArea(
@@ -225,6 +349,10 @@ export function humanLikeAlgorithm(boxDim: BoxDimensions, container: Container):
       }
     });
   }
+
+  // Find and fill any remaining empty spaces
+  const emptySpacePlacements = findEmptySpaces();
+  placements.push(...emptySpacePlacements);
 
   return {
     totalBoxes: placements.length,
