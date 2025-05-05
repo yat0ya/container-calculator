@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calculator } from 'lucide-react';
+import { Calculator, Loader2 } from 'lucide-react';
 import { Algorithm, BoxDimensions, Container } from '../types';
 import { ALGORITHMS, CONTAINERS } from '../constants';
 import { version } from '../../package.json';
@@ -12,6 +12,7 @@ interface BoxDimensionsFormProps {
   onAlgorithmChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
   onContainerChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
   onCalculate: () => void;
+  isCalculating: boolean;
 }
 
 export function BoxDimensionsForm({
@@ -21,7 +22,8 @@ export function BoxDimensionsForm({
   onDimensionsChange,
   onAlgorithmChange,
   onContainerChange,
-  onCalculate
+  onCalculate,
+  isCalculating
 }: BoxDimensionsFormProps) {
   return (
     <>
@@ -128,10 +130,15 @@ export function BoxDimensionsForm({
 
         <button
           onClick={onCalculate}
-          className="w-full bg-blue-600 text-white py-3 rounded-md hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+          disabled={isCalculating}
+          className="w-full bg-blue-600 text-white py-3 rounded-md hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 disabled:bg-blue-400 disabled:cursor-not-allowed"
         >
-          <Calculator className="w-5 h-5" />
-          Calculate
+          {isCalculating ? (
+            <Loader2 className="w-5 h-5 animate-spin" />
+          ) : (
+            <Calculator className="w-5 h-5" />
+          )}
+          {isCalculating ? 'Calculating...' : 'Calculate'}
         </button>
       </div>
     </>

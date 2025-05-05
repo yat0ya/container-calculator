@@ -37,18 +37,24 @@ export function VisualizationModal({ isOpen, onClose, result, boxDimensions, con
         </div>
 
         <div className="bg-gray-50 p-4 rounded-b-xl border-t">
-          <h3 className="text-sm font-medium text-gray-600 mb-3">Container Specifications</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <h3 className="text-lg font-semibold text-gray-700 mb-2">Container Specifications</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-y-2 sm:gap-4">
             <div>
-              <p className="text-sm text-gray-600 mb-1">Box Dimensions:</p>
-              <p className="text-sm text-gray-800 whitespace-nowrap">
+              <p className="text-base font-medium text-gray-600 mb-0.5">Box Dimensions</p>
+              <p className="text-lg text-gray-800">
                 {boxDimensions.length} × {boxDimensions.width} × {boxDimensions.height} cm
               </p>
             </div>
             <div>
-              <p className="text-sm text-gray-600 mb-1">Container Dimensions:</p>
-              <p className="text-sm text-gray-800 whitespace-nowrap">
+              <p className="text-base font-medium text-gray-600 mb-0.5">Container Dimensions</p>
+              <p className="text-lg text-gray-800">
                 {container.length.toFixed(2)} × {container.width.toFixed(2)} × {container.height.toFixed(2)} m
+              </p>
+            </div>
+            <div>
+              <p className="text-base font-medium text-gray-600 mb-0.5">Total Capacity</p>
+              <p className="text-lg text-gray-800">
+                {result.totalBoxes} boxes
               </p>
             </div>
           </div>

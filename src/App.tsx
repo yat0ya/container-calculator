@@ -95,8 +95,10 @@ function App() {
             onContainerChange={handleContainerChange}
             onCalculate={() => {
               setIsCalculating(true);
-              calculateResult();
+              // Add a small delay to allow the UI to update
+              setTimeout(calculateResult, 100);
             }}
+            isCalculating={isCalculating}
           />
           {result && !isCalculating && (
             <CalculationResults
