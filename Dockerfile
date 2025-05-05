@@ -1,13 +1,20 @@
-FROM nginx:stable-alpine
+FROM node:18-alpine
 
-# Create subfolder for your app inside nginx's web root
-WORKDIR /usr/share/nginx/html/container-calculator
+WORKDIR /app
 
-# Copy your Vite build output to that subfolder
-COPY dist/ .
+# Copy and install dependencies
+COPY package*.json ./
+RUN npm install
 
-# Add custom nginx config to serve under /container-calculator
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Copy app source and build it
+COPY . .
+RUN npm run build
 
-EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
+# Install serve to host the static files
+RUN npm install -g serve
+
+# Expose the port used by serve
+EXPOSE 3004
+
+# Serve the built app under a subpath
+CMD ["serve", "-s", "dist", "-l", "3004", "--single"]
