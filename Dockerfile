@@ -1,20 +1,11 @@
-FROM node:18-alpine
-
+FROM node:20 AS builder
 WORKDIR /app
-
-# Copy and install dependencies
-COPY package*.json ./
-RUN npm install
-
-# Copy app source and build it
 COPY . .
+RUN npm install
 RUN npm run build
 
-# Install serve to host the static files
-RUN npm install -g serve
-
-# Expose the port used by serve
-EXPOSE 3004
-
-# Serve the built app under a subpath
-CMD ["serve", "-s", "dist", "-l", "3004", "--single"]
+FROM nginx:stable-alpine
+COPY --from=builder /app/dist /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
