@@ -1,5 +1,4 @@
 import { BoxDimensions, CalculationResult, Container, BoxPlacement } from '../types';
-import { recursiveAlgorithm } from './recursive';
 
 interface CrossSectionConfig {
   mainRotation: [number, number, number];
@@ -62,18 +61,6 @@ export function humanLikeAlgorithm(boxDim: BoxDimensions, container: Container):
   }
 
   function canPlaceBox(position: { x: number; y: number; z: number }, rotation: [number, number, number]): boolean {
-    // Check if box is within container bounds
-    if (
-      position.x + rotation[0] > container.length ||
-      position.y + rotation[1] > container.height ||
-      position.z + rotation[2] > container.width ||
-      position.x < 0 ||
-      position.y < 0 ||
-      position.z < 0
-    ) {
-      return false;
-    }
-
     const newBox: BoxSpace = {
       x: position.x,
       y: position.y,
@@ -97,114 +84,53 @@ export function humanLikeAlgorithm(boxDim: BoxDimensions, container: Container):
     });
   }
 
-  function findEmptySpaces(): BoxPlacement[] {
+  // Recursive packing for remaining space
+  function packRemainingSpace(space: Space): BoxPlacement[] {
     const placements: BoxPlacement[] = [];
-    const minBoxDimension = Math.min(
-      boxInMeters.length,
-      boxInMeters.width,
-      boxInMeters.height
-    );
-    const step = minBoxDimension / 4; // Smaller step size for more thorough search
-    
-    // Sort occupied spaces by position for more efficient searching
-    const sortedSpaces = [...occupiedSpaces].sort((a, b) => 
-      a.x - b.x || a.y - b.y || a.z - b.z
-    );
-    
-    // Find potential placement points near existing boxes
-    const potentialPoints = new Set<string>();
-    
-    // First, focus on vertical spaces above existing boxes
-    sortedSpaces.forEach(space => {
-      const topY = space.y + space.height;
-      if (topY < container.height) {
-        // Check multiple points above each box
-        for (let x = space.x; x <= space.x + space.length; x += step) {
-          for (let z = space.z; z <= space.z + space.width; z += step) {
-            potentialPoints.add(`${x},${topY},${z}`);
-          }
-        }
-      }
-    });
+    let bestCount = 0;
+    let bestPlacements: BoxPlacement[] = [];
 
-    // Then check points around each occupied space
-    sortedSpaces.forEach(space => {
-      for (let dx = -1; dx <= 1; dx++) {
-        for (let dy = -1; dy <= 1; dy++) {
-          for (let dz = -1; dz <= 1; dz++) {
-            if (dx === 0 && dy === 0 && dz === 0) continue;
-            
-            const x = space.x + dx * step;
-            const y = space.y + dy * step;
-            const z = space.z + dz * step;
-            
-            potentialPoints.add(`${x},${y},${z}`);
-          }
-        }
+    rotations.forEach(rotation => {
+      if (rotation[0] > space.dimensions.length ||
+          rotation[1] > space.dimensions.height ||
+          rotation[2] > space.dimensions.width) {
+        return;
       }
-    });
 
-    // Try placing boxes at potential points
-    potentialPoints.forEach(point => {
-      const [x, y, z] = point.split(',').map(Number);
+      const lengthFit = Math.floor(space.dimensions.length / rotation[0]);
+      const heightFit = Math.floor(space.dimensions.height / rotation[1]);
+      const widthFit = Math.floor(space.dimensions.width / rotation[2]);
       
-      // Try vertical orientations first
-      const verticalRotations = rotations.filter(r => r[1] === Math.max(...r));
-      for (const rotation of verticalRotations) {
-        if (canPlaceBox({ x, y, z }, rotation)) {
-          placements.push({
-            position: { x, y, z },
-            rotation,
-          });
-          addOccupiedSpace({ x, y, z }, rotation);
-          return;
+      const currentPlacements: BoxPlacement[] = [];
+      let validBoxCount = 0;
+
+      for (let l = 0; l < lengthFit; l++) {
+        for (let h = 0; h < heightFit; h++) {
+          for (let w = 0; w < widthFit; w++) {
+            const position = {
+              x: space.position.x + l * rotation[0],
+              y: space.position.y + h * rotation[1],
+              z: space.position.z + w * rotation[2],
+            };
+
+            if (canPlaceBox(position, rotation)) {
+              currentPlacements.push({ position, rotation });
+              validBoxCount++;
+            }
+          }
         }
       }
 
-      // Try other rotations if vertical placement failed
-      for (const rotation of rotations) {
-        if (canPlaceBox({ x, y, z }, rotation)) {
-          placements.push({
-            position: { x, y, z },
-            rotation,
-          });
-          addOccupiedSpace({ x, y, z }, rotation);
-          return;
-        }
+      if (validBoxCount > bestCount) {
+        bestCount = validBoxCount;
+        bestPlacements = currentPlacements;
       }
     });
 
-    // Additional sweep for any remaining spaces
-    for (let x = 0; x < container.length; x += step) {
-      for (let y = 0; y < container.height; y += step) {
-        for (let z = 0; z < container.width; z += step) {
-          // Try vertical orientations first
-          const verticalRotations = rotations.filter(r => r[1] === Math.max(...r));
-          for (const rotation of verticalRotations) {
-            if (canPlaceBox({ x, y, z }, rotation)) {
-              placements.push({
-                position: { x, y, z },
-                rotation,
-              });
-              addOccupiedSpace({ x, y, z }, rotation);
-              break;
-            }
-          }
-
-          // Try other rotations if vertical placement failed
-          for (const rotation of rotations) {
-            if (canPlaceBox({ x, y, z }, rotation)) {
-              placements.push({
-                position: { x, y, z },
-                rotation,
-              });
-              addOccupiedSpace({ x, y, z }, rotation);
-              break;
-            }
-          }
-        }
-      }
-    }
+    placements.push(...bestPlacements);
+    bestPlacements.forEach(placement => {
+      addOccupiedSpace(placement.position, placement.rotation);
+    });
 
     return placements;
   }
@@ -322,37 +248,28 @@ export function humanLikeAlgorithm(boxDim: BoxDimensions, container: Container):
     }
   }
 
-  // Fill Big Mama space using recursive algorithm
-  const lastBoxX = mainBoxesLength * bestConfig.mainRotation[0];
-  const bigMamaContainer: Container = {
-    ...container,
-    length: container.length - lastBoxX,
-  };
+  // Calculate remaining space dimensions
+  const usedLength = mainBoxesLength * bestConfig.mainRotation[0];
+  const remainingLength = container.length - usedLength;
 
-  if (bigMamaContainer.length > Math.min(...Object.values(boxInMeters))) {
-    const bigMamaResult = recursiveAlgorithm(boxDim, bigMamaContainer);
-    
-    // Adjust positions of boxes from recursive algorithm to start after our existing boxes
-    const adjustedPlacements = bigMamaResult.placements?.map(placement => ({
-      ...placement,
+  // Fill the remaining space using recursive packing
+  if (remainingLength > Math.min(...Object.values(boxInMeters))) {
+    const remainingSpace: Space = {
       position: {
-        ...placement.position,
-        x: placement.position.x + lastBoxX,
+        x: usedLength,
+        y: 0,
+        z: 0,
       },
-    })) || [];
+      dimensions: {
+        length: remainingLength,
+        height: container.height,
+        width: container.width,
+      },
+    };
 
-    // Add only boxes that don't overlap with existing ones
-    adjustedPlacements.forEach(placement => {
-      if (canPlaceBox(placement.position, placement.rotation)) {
-        placements.push(placement);
-        addOccupiedSpace(placement.position, placement.rotation);
-      }
-    });
+    const remainingPlacements = packRemainingSpace(remainingSpace);
+    placements.push(...remainingPlacements);
   }
-
-  // Find and fill any remaining empty spaces
-  const emptySpacePlacements = findEmptySpaces();
-  placements.push(...emptySpacePlacements);
 
   return {
     totalBoxes: placements.length,
