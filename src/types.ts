@@ -1,5 +1,7 @@
 // types.ts
 
+export type Algorithm = 'basic' | 'humanLike' | 'plugger' | 'recursive';
+
 export interface BoxDimensions {
   length: number; // in cm before conversion
   width: number;
@@ -16,8 +18,6 @@ export interface Container {
   height: number;
   maxLoad: number; // in kg
 }
-
-export type Algorithm = 'basic' | 'humanLike' | 'recursive' | 'plugger';
 
 export interface Placement {
   position: {

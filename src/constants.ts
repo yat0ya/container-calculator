@@ -1,4 +1,4 @@
-import { AlgorithmOption, Container } from './types';
+import { Container } from './types';
 import containersData from './data/containers.json';
 
 export const CONTAINERS: Container[] = containersData.containers.map(container => ({
@@ -11,7 +11,12 @@ export const CONTAINERS: Container[] = containersData.containers.map(container =
 
 export const DEFAULT_CONTAINER = CONTAINERS[0];
 
-export const ALGORITHMS: AlgorithmOption[] = [
+export const ALGORITHMS = [
+  {
+    id: 'plugger',
+    name: 'Toya Plugger',
+    description: 'Recursive best-fit placement using all orientations.',
+  },
   {
     id: 'humanLike',
     name: 'Human-Like Packing',
@@ -19,17 +24,12 @@ export const ALGORITHMS: AlgorithmOption[] = [
   },
   {
     id: 'recursive',
-    name: 'Toya Plugger (Recursive)',
+    name: 'Recursive',
     description: 'Recursively fills spaces with optimal box arrangements',
   },
   {
     id: 'basic',
     name: 'Basic',
     description: 'Simple algorithm that calculates box fit without rotations',
-  },
-  {
-    id: 'plugger',
-    name: 'Plugger',
-    description: 'Recursive best-fit placement using all orientations.',
   }
 ];

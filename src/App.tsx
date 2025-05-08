@@ -2,12 +2,14 @@ import React, { useState } from 'react';
 import { BoxDimensionsForm } from './components/BoxDimensionsForm';
 import { CalculationResults } from './components/CalculationResults';
 import { VisualizationModal } from './components/VisualizationModal';
-import { Algorithm, BoxDimensions, Container, CalculationResult } from './types';
+import { BoxDimensions, Container, CalculationResult } from './types';
 import { basicAlgorithm } from './algorithms/basic';
 import { recursiveAlgorithm } from './algorithms/recursive';
 import { humanLikeAlgorithm } from './algorithms/humanLike';
 import { pluggerAlgorithm } from './algorithms/plugger';
 import { DEFAULT_CONTAINER, CONTAINERS } from './constants';
+import { Algorithm } from './types';
+
 
 function App() {
   const [boxDimensions, setBoxDimensions] = useState<BoxDimensions>({
@@ -17,7 +19,7 @@ function App() {
     weight: undefined,
     value: undefined,
   });
-  const [selectedAlgorithm, setSelectedAlgorithm] = useState<Algorithm>('humanLike');
+  const [selectedAlgorithm, setSelectedAlgorithm] = useState<Algorithm>('plugger');
   const [selectedContainer, setSelectedContainer] = useState<Container>(DEFAULT_CONTAINER);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [result, setResult] = useState<CalculationResult | null>(null);
@@ -34,9 +36,12 @@ function App() {
         break;
       case 'plugger':
         algorithm = pluggerAlgorithm;
-    break;
-      default:
+        break;
+      case 'recursive':
         algorithm = recursiveAlgorithm;
+        break;
+      default:
+        algorithm = pluggerAlgorithm;
     }
     
     const newResult = algorithm(boxDimensions, selectedContainer);
