@@ -1,4 +1,4 @@
-import { BoxDimensions, Container, CalculationResult, BoxPlacement } from '../types';
+import { BoxDimensions, Container, CalculationResult, Placement } from '../types';
 
 // Add missing util
 const cmToMeters = (cm: number) => cm / 100;
@@ -40,7 +40,7 @@ const overlaps = (a: Position, sizeA: [number, number, number], b: Position, siz
   );
 };
 
-const canPlace = (position: Position, rotation: [number, number, number], placed: BoxPlacement[], container: Container): boolean => {
+const canPlace = (position: Position, rotation: [number, number, number], placed: Placement[], container: Container): boolean => {
   if (!fits(position, rotation, container)) return false;
   return placed.every(p => !overlaps(position, rotation, p.position, p.rotation));
 };
@@ -48,9 +48,9 @@ const canPlace = (position: Position, rotation: [number, number, number], placed
 const placeBoxes = (
   container: Container,
   box: BoxDimensions,
-  placed: BoxPlacement[],
+  placed: Placement[],
   candidates: Position[]
-): BoxPlacement[] => {
+): Placement[] => {
   const rotations = getRotations(box);
 
   for (const pos of candidates) {

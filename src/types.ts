@@ -1,47 +1,44 @@
-import { Vector3 } from 'three';
+// types.ts
 
 export interface BoxDimensions {
-  length: number;
+  length: number; // in cm before conversion
   width: number;
   height: number;
-  weight?: number;
+  weight?: number; // kg
   value?: number;
 }
 
 export interface Container {
   id: string;
   name: string;
-  length: number;
+  length: number; // in meters
   width: number;
   height: number;
-  maxLoad: number;
+  maxLoad: number; // in kg
 }
 
-export interface BoxPlacement {
+export type Algorithm = 'basic' | 'humanLike' | 'recursive';
+
+export interface Placement {
   position: {
     x: number;
     y: number;
     z: number;
   };
-  rotation: [number, number, number];
+  rotation: [number, number, number]; // length, height, width in meters
 }
 
 export interface CalculationResult {
-  lengthFit: number;
-  widthFit: number;
-  heightFit: number;
   totalBoxes: number;
+  placements: Placement[];
   boxInMeters: BoxDimensions;
-  placements?: BoxPlacement[];
-  totalValue?: number;
+
   totalWeight?: number;
   maxPossibleBoxes?: number;
-}
+  totalValue?: number;
 
-export type Algorithm = 'basic' | 'recursive' | 'humanLike';
-
-export interface AlgorithmOption {
-  id: Algorithm;
-  name: string;
-  description: string;
+  // Used only by grid-based/basic algorithm
+  lengthFit?: number;
+  heightFit?: number;
+  widthFit?: number;
 }
