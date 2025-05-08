@@ -61,9 +61,100 @@ export function pluggerAlgorithm(
     }
   );
 
+  logFlyingGroups(placements); // Optional: logs before fix
+  applyGravity(placements);
+  logFlyingGroups(placements); // Optional: logs after fix
+
   return {
     totalBoxes: placements.length,
     placements,
     boxInMeters,
   };
+}
+
+function logFlyingGroups(placements: Placement[]) {
+  const epsilon = 0.01;
+
+  function overlaps2D(a: Placement, b: Placement) {
+    return !(
+      a.position.x + a.rotation[0] <= b.position.x ||
+      b.position.x + b.rotation[0] <= a.position.x ||
+      a.position.z + a.rotation[2] <= b.position.z ||
+      b.position.z + b.rotation[2] <= a.position.z
+    );
+  }
+
+  function isSupported(box: Placement) {
+    if (Math.abs(box.position.y) < epsilon) return true;
+    return placements.some(other => {
+      if (other === box) return false;
+      const top = other.position.y + other.rotation[1];
+      const dy = box.position.y - top;
+      return Math.abs(dy) < epsilon && overlaps2D(box, other);
+    });
+  }
+
+  const flying = placements.filter(p => !isSupported(p));
+  const groupCount = flying.length;
+  console.log(`🚨 Flying box groups detected: ${groupCount}`);
+}
+
+function applyGravity(placements: Placement[]) {
+  const epsilon = 0.001;
+
+  function overlaps(a: Placement, b: Placement): boolean {
+    return !(
+      a.position.x + a.rotation[0] <= b.position.x ||
+      b.position.x + b.rotation[0] <= a.position.x ||
+      a.position.y + a.rotation[1] <= b.position.y ||
+      b.position.y + b.rotation[1] <= a.position.y ||
+      a.position.z + a.rotation[2] <= b.position.z ||
+      b.position.z + b.rotation[2] <= a.position.z
+    );
+  }
+
+  function isSupported(box: Placement, others: Placement[]) {
+    if (Math.abs(box.position.y) < epsilon) return true;
+    return others.some(other => {
+      if (other === box) return false;
+      const top = other.position.y + other.rotation[1];
+      const xOverlap = !(box.position.x + box.rotation[0] <= other.position.x ||
+                         other.position.x + other.rotation[0] <= box.position.x);
+      const zOverlap = !(box.position.z + box.rotation[2] <= other.position.z ||
+                         other.position.z + other.rotation[2] <= box.position.z);
+      return xOverlap && zOverlap && Math.abs(box.position.y - top) < epsilon;
+    });
+  }
+
+  let moved;
+  do {
+    moved = false;
+
+    for (const box of placements) {
+      if (isSupported(box, placements)) continue;
+
+      let minY = 0;
+      for (const other of placements) {
+        if (other === box) continue;
+
+        const xOverlap = !(box.position.x + box.rotation[0] <= other.position.x ||
+                           other.position.x + other.rotation[0] <= box.position.x);
+        const zOverlap = !(box.position.z + box.rotation[2] <= other.position.z ||
+                           other.position.z + other.rotation[2] <= box.position.z);
+
+        if (xOverlap && zOverlap) {
+          const potentialY = other.position.y + other.rotation[1];
+          if (potentialY <= box.position.y && potentialY > minY) {
+            minY = potentialY;
+          }
+        }
+      }
+
+      const newY = minY;
+      if (Math.abs(box.position.y - newY) > epsilon) {
+        box.position.y = newY;
+        moved = true;
+      }
+    }
+  } while (moved);
 }
