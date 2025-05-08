@@ -17,7 +17,7 @@ export interface Container {
   maxLoad: number; // in kg
 }
 
-export type Algorithm = 'basic' | 'humanLike' | 'recursive';
+export type Algorithm = 'basic' | 'humanLike' | 'recursive' | 'plugger';
 
 export interface Placement {
   position: {

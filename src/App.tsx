@@ -6,6 +6,7 @@ import { Algorithm, BoxDimensions, Container, CalculationResult } from './types'
 import { basicAlgorithm } from './algorithms/basic';
 import { recursiveAlgorithm } from './algorithms/recursive';
 import { humanLikeAlgorithm } from './algorithms/humanLike';
+import { pluggerAlgorithm } from './algorithms/plugger';
 import { DEFAULT_CONTAINER, CONTAINERS } from './constants';
 
 function App() {
@@ -31,6 +32,9 @@ function App() {
       case 'humanLike':
         algorithm = humanLikeAlgorithm;
         break;
+      case 'plugger':
+        algorithm = pluggerAlgorithm;
+    break;
       default:
         algorithm = recursiveAlgorithm;
     }

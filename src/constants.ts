@@ -27,4 +27,9 @@ export const ALGORITHMS: AlgorithmOption[] = [
     name: 'Basic',
     description: 'Simple algorithm that calculates box fit without rotations',
   },
+  {
+    id: 'plugger',
+    name: 'Plugger',
+    description: 'Recursive best-fit placement using all orientations.',
+  }
 ];

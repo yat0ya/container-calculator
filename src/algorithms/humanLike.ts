@@ -1,282 +1,101 @@
-import { BoxDimensions, CalculationResult, Container, BoxPlacement } from '../types';
+import { BoxDimensions, Container, CalculationResult, Placement } from '../types';
+import { convertToMeters } from '../utils';
 
-interface CrossSectionConfig {
-  mainRotation: [number, number, number];
-  columnRotation: [number, number, number] | null;
-  boxesPerWidth: number;
-  boxesPerHeight: number;
-  crossSectionArea: number;
+interface BaseLayer {
+  rotation: [number, number, number]; // [length, height, width]
+  count: number;
+  positions: { x: number; y: number }[];
 }
 
-interface Space {
-  position: {
-    x: number;
-    y: number;
-    z: number;
-  };
-  dimensions: {
-    length: number;
-    width: number;
-    height: number;
-  };
-}
+/**
+ * Try all 6 axis-aligned orientations and return the one with the most 2D placements.
+ */
+export function generateOptimal2DLayer(
+  box: { length: number; width: number; height: number },
+  container: { length: number; width: number }
+): BaseLayer | null {
+  const orientations = ([
+    [box.length, box.width, box.height],
+    [box.width, box.length, box.height],
+    [box.length, box.height, box.width],
+    [box.height, box.length, box.width],
+    [box.width, box.height, box.length],
+    [box.height, box.width, box.length],
+  ] as [number, number, number][]).filter(([l, , w]) => l <= container.length && w <= container.width);
 
-interface BoxSpace {
-  x: number;
-  y: number;
-  z: number;
-  length: number;
-  height: number;
-  width: number;
-}
+  let bestFit: BaseLayer | null = null;
 
-export function humanLikeAlgorithm(boxDim: BoxDimensions, container: Container): CalculationResult {
-  const boxInMeters = {
-    length: boxDim.length / 100,
-    width: boxDim.width / 100,
-    height: boxDim.height / 100,
-  };
+  for (const [len, hgt, wid] of orientations) {
+    const fitLength = Math.floor(container.length / len);
+    const fitWidth = Math.floor(container.width / wid);
+    const count = fitLength * fitWidth;
 
-  const rotations: [number, number, number][] = [
-    [boxInMeters.length, boxInMeters.height, boxInMeters.width],
-    [boxInMeters.width, boxInMeters.height, boxInMeters.length],
-    [boxInMeters.length, boxInMeters.width, boxInMeters.height],
-    [boxInMeters.height, boxInMeters.width, boxInMeters.length],
-    [boxInMeters.width, boxInMeters.length, boxInMeters.height],
-    [boxInMeters.height, boxInMeters.length, boxInMeters.width],
-  ];
-
-  // Track occupied spaces
-  const occupiedSpaces: BoxSpace[] = [];
-
-  function isOverlapping(box1: BoxSpace, box2: BoxSpace): boolean {
-    return !(
-      box1.x + box1.length <= box2.x ||
-      box2.x + box2.length <= box1.x ||
-      box1.y + box1.height <= box2.y ||
-      box2.y + box2.height <= box1.y ||
-      box1.z + box1.width <= box2.z ||
-      box2.z + box2.width <= box1.z
-    );
-  }
-
-  function canPlaceBox(position: { x: number; y: number; z: number }, rotation: [number, number, number]): boolean {
-    const newBox: BoxSpace = {
-      x: position.x,
-      y: position.y,
-      z: position.z,
-      length: rotation[0],
-      height: rotation[1],
-      width: rotation[2],
-    };
-
-    return !occupiedSpaces.some(space => isOverlapping(newBox, space));
-  }
-
-  function addOccupiedSpace(position: { x: number; y: number; z: number }, rotation: [number, number, number]) {
-    occupiedSpaces.push({
-      x: position.x,
-      y: position.y,
-      z: position.z,
-      length: rotation[0],
-      height: rotation[1],
-      width: rotation[2],
-    });
-  }
-
-  // Recursive packing for remaining space
-  function packRemainingSpace(space: Space): BoxPlacement[] {
-    const placements: BoxPlacement[] = [];
-    let bestCount = 0;
-    let bestPlacements: BoxPlacement[] = [];
-
-    rotations.forEach(rotation => {
-      if (rotation[0] > space.dimensions.length ||
-          rotation[1] > space.dimensions.height ||
-          rotation[2] > space.dimensions.width) {
-        return;
+    const positions = [];
+    for (let i = 0; i < fitLength; i++) {
+      for (let j = 0; j < fitWidth; j++) {
+        positions.push({ x: i * len, y: j * wid });
       }
-
-      const lengthFit = Math.floor(space.dimensions.length / rotation[0]);
-      const heightFit = Math.floor(space.dimensions.height / rotation[1]);
-      const widthFit = Math.floor(space.dimensions.width / rotation[2]);
-      
-      const currentPlacements: BoxPlacement[] = [];
-      let validBoxCount = 0;
-
-      for (let l = 0; l < lengthFit; l++) {
-        for (let h = 0; h < heightFit; h++) {
-          for (let w = 0; w < widthFit; w++) {
-            const position = {
-              x: space.position.x + l * rotation[0],
-              y: space.position.y + h * rotation[1],
-              z: space.position.z + w * rotation[2],
-            };
-
-            if (canPlaceBox(position, rotation)) {
-              currentPlacements.push({ position, rotation });
-              validBoxCount++;
-            }
-          }
-        }
-      }
-
-      if (validBoxCount > bestCount) {
-        bestCount = validBoxCount;
-        bestPlacements = currentPlacements;
-      }
-    });
-
-    placements.push(...bestPlacements);
-    bestPlacements.forEach(placement => {
-      addOccupiedSpace(placement.position, placement.rotation);
-    });
-
-    return placements;
-  }
-
-  function calculateCrossSectionArea(
-    mainRotation: [number, number, number],
-    boxesPerWidth: number,
-    boxesPerHeight: number,
-    columnRotation: [number, number, number] | null
-  ): number {
-    const mainWidth = boxesPerWidth * mainRotation[2];
-    const mainHeight = boxesPerHeight * mainRotation[1];
-    
-    let totalArea = 0;
-    totalArea += mainWidth * (container.height - mainHeight);
-    
-    if (columnRotation) {
-      const columnStartZ = mainWidth;
-      const columnBoxesHeight = Math.floor(container.height / columnRotation[1]);
-      const columnHeight = columnBoxesHeight * columnRotation[1];
-      
-      totalArea += columnRotation[2] * (container.height - columnHeight);
-      totalArea += container.height * (container.width - (mainWidth + columnRotation[2]));
-    } else {
-      totalArea += container.height * (container.width - mainWidth);
     }
-    
-    return totalArea;
+
+    if (!bestFit || count > bestFit.count) {
+      bestFit = {
+        rotation: [len, hgt, wid],
+        count,
+        positions,
+      };
+    }
   }
 
-  // Find optimal cross-section configuration
-  let bestConfig: CrossSectionConfig | null = null;
+  return bestFit;
+}
 
-  rotations.forEach(mainRot => {
-    const boxesPerWidth = Math.floor((container.width - Math.min(...Object.values(boxInMeters))) / mainRot[2]);
-    const boxesPerHeight = Math.floor(container.height / mainRot[1]);
-    
-    if (boxesPerWidth === 0 || boxesPerHeight === 0) return;
+/**
+ * Stack the 2D layer upward along height, repeating placements at each level.
+ */
+function repeatEachBoxIndividually(
+  baseLayer: BaseLayer,
+  container: Container
+): Placement[] {
+  const placements: Placement[] = [];
+  const [len, hgt, wid] = baseLayer.rotation;
 
-    rotations.forEach(colRot => {
-      const remainingWidth = container.width - (boxesPerWidth * mainRot[2]);
-      if (colRot[2] <= remainingWidth) {
-        const area = calculateCrossSectionArea(mainRot, boxesPerWidth, boxesPerHeight, colRot);
-        
-        if (!bestConfig || area < bestConfig.crossSectionArea) {
-          bestConfig = {
-            mainRotation: mainRot,
-            columnRotation: colRot,
-            boxesPerWidth,
-            boxesPerHeight,
-            crossSectionArea: area
-          };
-        }
-      }
-    });
-  });
+  let z = 0;
+  while (z + hgt <= container.height) {
+    for (const pos of baseLayer.positions) {
+      placements.push({
+        position: { x: pos.x, y: z, z: pos.y },
+        rotation: [len, hgt, wid],
+      });
+    }
+    z += hgt;
+  }
 
-  if (!bestConfig) {
+  return placements;
+}
+
+/**
+ * Main packing function using 2D greedy base layer stacking in height.
+ */
+export function humanLikeAlgorithm(
+  box: BoxDimensions,
+  container: Container
+): CalculationResult {
+  const boxInMeters = convertToMeters(box);
+  const baseLayer = generateOptimal2DLayer(boxInMeters, container);
+
+  if (!baseLayer) {
     return {
       totalBoxes: 0,
-      boxInMeters,
       placements: [],
-      lengthFit: 0,
-      widthFit: 0,
-      heightFit: 0,
+      boxInMeters,
     };
   }
 
-  const placements: BoxPlacement[] = [];
-  
-  // Calculate how many boxes fit along length for main section
-  const mainBoxesLength = Math.floor(container.length / bestConfig.mainRotation[0]);
-  
-  // Place boxes continuously along length
-  for (let h = 0; h < bestConfig.boxesPerHeight; h++) {
-    for (let w = 0; w < bestConfig.boxesPerWidth; w++) {
-      for (let l = 0; l < mainBoxesLength; l++) {
-        const position = {
-          x: l * bestConfig.mainRotation[0],
-          y: h * bestConfig.mainRotation[1],
-          z: w * bestConfig.mainRotation[2],
-        };
-        
-        placements.push({
-          position,
-          rotation: bestConfig.mainRotation,
-        });
-        
-        addOccupiedSpace(position, bestConfig.mainRotation);
-      }
-    }
-  }
-
-  // Place column boxes continuously
-  if (bestConfig.columnRotation) {
-    const columnStartZ = bestConfig.boxesPerWidth * bestConfig.mainRotation[2];
-    const columnBoxesHeight = Math.floor(container.height / bestConfig.columnRotation[1]);
-    const columnBoxesLength = Math.floor(container.length / bestConfig.columnRotation[0]);
-    
-    for (let h = 0; h < columnBoxesHeight; h++) {
-      for (let l = 0; l < columnBoxesLength; l++) {
-        const position = {
-          x: l * bestConfig.columnRotation[0],
-          y: h * bestConfig.columnRotation[1],
-          z: columnStartZ,
-        };
-        
-        placements.push({
-          position,
-          rotation: bestConfig.columnRotation,
-        });
-        
-        addOccupiedSpace(position, bestConfig.columnRotation);
-      }
-    }
-  }
-
-  // Calculate remaining space dimensions
-  const usedLength = mainBoxesLength * bestConfig.mainRotation[0];
-  const remainingLength = container.length - usedLength;
-
-  // Fill the remaining space using recursive packing
-  if (remainingLength > Math.min(...Object.values(boxInMeters))) {
-    const remainingSpace: Space = {
-      position: {
-        x: usedLength,
-        y: 0,
-        z: 0,
-      },
-      dimensions: {
-        length: remainingLength,
-        height: container.height,
-        width: container.width,
-      },
-    };
-
-    const remainingPlacements = packRemainingSpace(remainingSpace);
-    placements.push(...remainingPlacements);
-  }
+  const placements = repeatEachBoxIndividually(baseLayer, container);
 
   return {
     totalBoxes: placements.length,
-    boxInMeters,
     placements,
-    lengthFit: mainBoxesLength,
-    widthFit: bestConfig.boxesPerWidth + (bestConfig.columnRotation ? 1 : 0),
-    heightFit: bestConfig.boxesPerHeight,
+    boxInMeters,
   };
 }
