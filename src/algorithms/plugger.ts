@@ -30,44 +30,45 @@ export function pluggerAlgorithm(
     const round = (n: number) => Math.round(n * 1000); // 3 decimal places
     const key = `${round(origin.x)},${round(origin.y)},${round(origin.z)},${round(space.length)},${round(space.height)},${round(space.width)}`;
 
-
     if (memo.has(key)) return memo.get(key)!;
 
     let bestResult: Placement[] = [];
 
     for (const [l, h, w] of orientations) {
-      if (l <= space.length + EPSILON && h <= space.height + EPSILON && w <= space.width + EPSILON) {
-        const placement: Placement = {
-          position: { x: origin.x, y: origin.y, z: origin.z },
-          rotation: [l, h, w],
-        };
+      if (l > space.length + EPSILON || h > space.height + EPSILON || w > space.width + EPSILON) {
+        continue; // Early skip of infeasible orientations
+      }
 
-        const totalPlacements: Placement[] = [placement];
+      const placement: Placement = {
+        position: { x: origin.x, y: origin.y, z: origin.z },
+        rotation: [l, h, w],
+      };
 
-        if (space.length - l > EPSILON) {
-          totalPlacements.push(...recurse(
-            { x: origin.x + l, y: origin.y, z: origin.z },
-            { length: space.length - l, height: h, width: w }
-          ));
-        }
+      const totalPlacements: Placement[] = [placement];
 
-        if (space.height - h > EPSILON) {
-          totalPlacements.push(...recurse(
-            { x: origin.x, y: origin.y + h, z: origin.z },
-            { length: space.length, height: space.height - h, width: w }
-          ));
-        }
+      if (space.length - l > EPSILON) {
+        totalPlacements.push(...recurse(
+          { x: origin.x + l, y: origin.y, z: origin.z },
+          { length: space.length - l, height: h, width: w }
+        ));
+      }
 
-        if (space.width - w > EPSILON) {
-          totalPlacements.push(...recurse(
-            { x: origin.x, y: origin.y, z: origin.z + w },
-            { length: space.length, height: space.height, width: space.width - w }
-          ));
-        }
+      if (space.height - h > EPSILON) {
+        totalPlacements.push(...recurse(
+          { x: origin.x, y: origin.y + h, z: origin.z },
+          { length: space.length, height: space.height - h, width: w }
+        ));
+      }
 
-        if (totalPlacements.length > bestResult.length) {
-          bestResult = totalPlacements;
-        }
+      if (space.width - w > EPSILON) {
+        totalPlacements.push(...recurse(
+          { x: origin.x, y: origin.y, z: origin.z + w },
+          { length: space.length, height: space.height, width: space.width - w }
+        ));
+      }
+
+      if (totalPlacements.length > bestResult.length) {
+        bestResult = totalPlacements;
       }
     }
 
