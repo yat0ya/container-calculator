@@ -27,9 +27,9 @@ export function pluggerAlgorithm(
     const volume = space.length * space.height * space.width;
     if (volume < MIN_VOLUME) return [];
 
-    const key = [origin.x, origin.y, origin.z, space.length, space.height, space.width]
-      .map(n => n.toFixed(3))
-      .join('|');
+    const round = (n: number) => Math.round(n * 1000); // 3 decimal places
+    const key = `${round(origin.x)},${round(origin.y)},${round(origin.z)},${round(space.length)},${round(space.height)},${round(space.width)}`;
+
 
     if (memo.has(key)) return memo.get(key)!;
 
@@ -75,7 +75,7 @@ export function pluggerAlgorithm(
     return bestResult;
   }
 
-     const placements = recurse(
+  const placements = recurse(
     { x: 0, y: 0, z: 0 },
     {
       length: container.length,
