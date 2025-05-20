@@ -3,6 +3,7 @@ import { convertToMeters } from '../utils';
 
 const EPSILON = 1e-6;
 const MIN_VOLUME = 1e-6;
+const MAX_ITERATIONS = 50;
 
 export function pluggerAlgorithm(box: BoxDimensions, container: Container): CalculationResult {
   const boxInMeters = convertToMeters(box);
@@ -68,7 +69,7 @@ function packBoxes(container: Container, orientations: [number, number, number][
     for (const [l, h, w] of orientations) {
       if (l > space.length + EPSILON || h > space.height + EPSILON || w > space.width + EPSILON) continue;
 
-      const basePlacement: Placement = { position: origin, rotation: [l, h, w] };
+      const basePlacement: Placement = { position: { ...origin }, rotation: [l, h, w] };
       const next: Placement[] = [basePlacement];
 
       if (space.length - l > EPSILON)
@@ -91,7 +92,7 @@ function packBoxes(container: Container, orientations: [number, number, number][
 }
 
 function createMemoKey(origin: { x: number; y: number; z: number }, space: { length: number; height: number; width: number }): string {
-  const round = (n: number) => Math.round(n * 1000);
+  const round = (n: number) => Math.round(n * 100); // reduced precision from *1000
   return [
     round(origin.x),
     round(origin.y),
@@ -120,9 +121,11 @@ function logFlyingGroups(placements: Placement[]) {
 }
 
 function applyGravity(placements: Placement[]) {
-  let moved;
+  let moved = false;
+  let iterations = 0;
   do {
     moved = false;
+    iterations++;
 
     for (const box of placements) {
       if (Math.abs(box.position.y) < EPSILON) continue;
@@ -149,13 +152,16 @@ function applyGravity(placements: Placement[]) {
         moved = true;
       }
     }
-  } while (moved);
+  } while (moved && iterations < MAX_ITERATIONS);
 }
 
 function applySidePull(placements: Placement[]) {
   let moved;
+  let iterations = 0;
+
   do {
     moved = false;
+    iterations++;
     for (const axis of ['x', 'z'] as const) {
       const ortho = axis === 'x' ? 'z' : 'x';
       const sizeIdx = axis === 'x' ? 0 : 2;
@@ -190,22 +196,18 @@ function applySidePull(placements: Placement[]) {
         }
       }
     }
-  } while (moved);
+  } while (moved && iterations < MAX_ITERATIONS);
 }
 
-function greedyResidualFill(
-  basePlacements: Placement[],
-  container: Container,
-  boxDims: [number, number, number][]
-): Placement[] {
+function greedyResidualFill(basePlacements: Placement[], container: Container, boxDims: [number, number, number][]): Placement[] {
   const newPlacements: Placement[] = [];
-  const occupied = new Set(basePlacements);
+  const occupied = [...basePlacements];
 
   const step = Math.min(...boxDims.map(d => Math.min(...d))) / 4;
   const sorted = [...boxDims].sort((a, b) => b[0] * b[1] * b[2] - a[0] * a[1] * a[2]);
 
   const isFree = (x: number, y: number, z: number, l: number, h: number, w: number) =>
-    ![...occupied].some(p =>
+    !occupied.some(p =>
       x < p.position.x + p.rotation[0] &&
       x + l > p.position.x &&
       y < p.position.y + p.rotation[1] &&
@@ -226,7 +228,7 @@ function greedyResidualFill(
           ) {
             const placement: Placement = { position: { x, y, z }, rotation: [l, h, w] };
             newPlacements.push(placement);
-            occupied.add(placement);
+            occupied.push(placement);
           }
         }
       }
@@ -236,11 +238,7 @@ function greedyResidualFill(
   return newPlacements;
 }
 
-function tryPlaceOneFinalBox(
-  occupied: Placement[],
-  container: Container,
-  orientations: [number, number, number][]
-): Placement | null {
+function tryPlaceOneFinalBox(occupied: Placement[], container: Container, orientations: [number, number, number][]): Placement | null {
   const step = Math.min(...orientations.map(d => Math.min(...d))) / 10;
   const sorted = [...orientations].sort((a, b) => b[0] * b[1] * b[2] - a[0] * a[1] * a[2]);
 
@@ -274,11 +272,7 @@ function tryPlaceOneFinalBox(
   return null;
 }
 
-function finalInsertionSweep(
-  placements: Placement[],
-  container: Container,
-  orientations: [number, number, number][]
-): Placement[] {
+function finalInsertionSweep(placements: Placement[], container: Container, orientations: [number, number, number][]): Placement[] {
   const occupied = [...placements];
   const newPlacements: Placement[] = [];
 
