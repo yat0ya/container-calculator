@@ -4,86 +4,10 @@ import { convertToMeters } from '../utils';
 const EPSILON = 1e-6;
 const MIN_VOLUME = 1e-6;
 
-export function pluggerAlgorithm(
-  box: BoxDimensions,
-  container: Container
-): CalculationResult {
+export function pluggerAlgorithm(box: BoxDimensions, container: Container): CalculationResult {
   const boxInMeters = convertToMeters(box);
-  const orientations: [number, number, number][] = [
-    [boxInMeters.length, boxInMeters.width, boxInMeters.height],
-    [boxInMeters.length, boxInMeters.height, boxInMeters.width],
-    [boxInMeters.width, boxInMeters.length, boxInMeters.height],
-    [boxInMeters.width, boxInMeters.height, boxInMeters.length],
-    [boxInMeters.height, boxInMeters.length, boxInMeters.width],
-    [boxInMeters.height, boxInMeters.width, boxInMeters.length],
-  ];
-
-  const memo = new Map<string, Placement[]>();
-
-  function recurse(
-    origin: { x: number; y: number; z: number },
-    space: { length: number; height: number; width: number }
-  ): Placement[] {
-    const volume = space.length * space.height * space.width;
-    if (volume < MIN_VOLUME) return [];
-
-    const round = (n: number) => Math.round(n * 1000); // 3 decimal places
-    const key = `${round(origin.x)},${round(origin.y)},${round(origin.z)},${round(space.length)},${round(space.height)},${round(space.width)}`;
-
-    if (memo.has(key)) return memo.get(key)!;
-
-    let bestResult: Placement[] = [];
-
-    for (const [l, h, w] of orientations) {
-      if (l > space.length + EPSILON || h > space.height + EPSILON || w > space.width + EPSILON) {
-        continue; // Early skip of infeasible orientations
-      }
-
-      const placement: Placement = {
-        position: { x: origin.x, y: origin.y, z: origin.z },
-        rotation: [l, h, w],
-      };
-
-      const totalPlacements: Placement[] = [placement];
-
-      if (space.length - l > EPSILON) {
-        totalPlacements.push(...recurse(
-          { x: origin.x + l, y: origin.y, z: origin.z },
-          { length: space.length - l, height: h, width: w }
-        ));
-      }
-
-      if (space.height - h > EPSILON) {
-        totalPlacements.push(...recurse(
-          { x: origin.x, y: origin.y + h, z: origin.z },
-          { length: space.length, height: space.height - h, width: w }
-        ));
-      }
-
-      if (space.width - w > EPSILON) {
-        totalPlacements.push(...recurse(
-          { x: origin.x, y: origin.y, z: origin.z + w },
-          { length: space.length, height: space.height, width: space.width - w }
-        ));
-      }
-
-      if (totalPlacements.length > bestResult.length) {
-        bestResult = totalPlacements;
-      }
-    }
-
-    memo.set(key, bestResult);
-    return bestResult;
-  }
-
-  const placements = recurse(
-    { x: 0, y: 0, z: 0 },
-    {
-      length: container.length,
-      height: container.height,
-      width: container.width,
-    }
-  );
+  const orientations = generateOrientations(boxInMeters);
+  const placements = packBoxes(container, orientations);
 
   applyGravity(placements);
   applySidePull(placements);
@@ -95,18 +19,16 @@ export function pluggerAlgorithm(
 
   placements.push(...finalInsertionSweep(placements, container, orientations));
 
-  // 🔁 Only optimize once everything is inserted
   optimizeOrientations(placements, container, orientations);
 
-  // ⬇️ Reapply gravity & pull to settle rotated boxes
   applyGravity(placements);
   applySidePull(placements);
 
-  // 🧠 Final sweep again – rotation may have opened space
   placements.push(...finalInsertionSweep(placements, container, orientations));
 
   applyGravity(placements);
   applySidePull(placements);
+
   logFlyingGroups(placements);
 
   return {
@@ -114,6 +36,70 @@ export function pluggerAlgorithm(
     placements,
     boxInMeters,
   };
+}
+
+function generateOrientations(box: BoxDimensions): [number, number, number][] {
+  const { length, width, height } = box;
+  return [
+    [length, width, height],
+    [length, height, width],
+    [width, length, height],
+    [width, height, length],
+    [height, length, width],
+    [height, width, length],
+  ];
+}
+
+function packBoxes(container: Container, orientations: [number, number, number][]): Placement[] {
+  const memo = new Map<string, Placement[]>();
+
+  function recurse(
+    origin: { x: number; y: number; z: number },
+    space: { length: number; height: number; width: number }
+  ): Placement[] {
+    const volume = space.length * space.height * space.width;
+    if (volume < MIN_VOLUME) return [];
+
+    const key = createMemoKey(origin, space);
+    if (memo.has(key)) return memo.get(key)!;
+
+    let best: Placement[] = [];
+
+    for (const [l, h, w] of orientations) {
+      if (l > space.length + EPSILON || h > space.height + EPSILON || w > space.width + EPSILON) continue;
+
+      const basePlacement: Placement = { position: origin, rotation: [l, h, w] };
+      const next: Placement[] = [basePlacement];
+
+      if (space.length - l > EPSILON)
+        next.push(...recurse({ x: origin.x + l, y: origin.y, z: origin.z }, { length: space.length - l, height: h, width: w }));
+
+      if (space.height - h > EPSILON)
+        next.push(...recurse({ x: origin.x, y: origin.y + h, z: origin.z }, { length: space.length, height: space.height - h, width: w }));
+
+      if (space.width - w > EPSILON)
+        next.push(...recurse({ x: origin.x, y: origin.y, z: origin.z + w }, { length: space.length, height: space.height, width: space.width - w }));
+
+      if (next.length > best.length) best = next;
+    }
+
+    memo.set(key, best);
+    return best;
+  }
+
+  return recurse({ x: 0, y: 0, z: 0 }, container);
+}
+
+function createMemoKey(origin: { x: number; y: number; z: number }, space: { length: number; height: number; width: number }): string {
+  const round = (n: number) => Math.round(n * 1000);
+  return [
+    round(origin.x),
+    round(origin.y),
+    round(origin.z),
+    round(space.length),
+    round(space.height),
+    round(space.width),
+  ].join(',');
 }
 
 function logFlyingGroups(placements: Placement[]) {
@@ -288,47 +274,6 @@ function tryPlaceOneFinalBox(
   return null;
 }
 
-function optimizeOrientations(placements: Placement[], container: Container, orientations: [number, number, number][]) {
-  for (let i = 0; i < placements.length; i++) {
-    const current = placements[i];
-
-    for (const [l, h, w] of orientations) {
-      if (l === current.rotation[0] && h === current.rotation[1] && w === current.rotation[2]) continue;
-
-      if (
-        current.position.x + l <= container.length + EPSILON &&
-        current.position.y + h <= container.height + EPSILON &&
-        current.position.z + w <= container.width + EPSILON
-      ) {
-        const rotated: Placement = {
-          position: current.position,
-          rotation: [l, h, w]
-        };
-
-        const noOverlap = placements.every((p, idx) =>
-          idx === i || !intersects(rotated, p)
-        );
-
-        if (noOverlap) {
-          placements[i] = rotated;
-          break;
-        }
-      }
-    }
-  }
-}
-
-function intersects(a: Placement, b: Placement) {
-  return (
-    a.position.x < b.position.x + b.rotation[0] &&
-    a.position.x + a.rotation[0] > b.position.x &&
-    a.position.y < b.position.y + b.rotation[1] &&
-    a.position.y + a.rotation[1] > b.position.y &&
-    a.position.z < b.position.z + b.rotation[2] &&
-    a.position.z + a.rotation[2] > b.position.z
-  );
-}
-
 function finalInsertionSweep(
   placements: Placement[],
   container: Container,
@@ -370,4 +315,45 @@ function finalInsertionSweep(
   }
 
   return newPlacements;
+}
+
+function optimizeOrientations(placements: Placement[], container: Container, orientations: [number, number, number][]) {
+  for (let i = 0; i < placements.length; i++) {
+    const current = placements[i];
+
+    for (const [l, h, w] of orientations) {
+      if (l === current.rotation[0] && h === current.rotation[1] && w === current.rotation[2]) continue;
+
+      if (
+        current.position.x + l <= container.length + EPSILON &&
+        current.position.y + h <= container.height + EPSILON &&
+        current.position.z + w <= container.width + EPSILON
+      ) {
+        const rotated: Placement = {
+          position: current.position,
+          rotation: [l, h, w]
+        };
+
+        const noOverlap = placements.every((p, idx) =>
+          idx === i || !intersects(rotated, p)
+        );
+
+        if (noOverlap) {
+          placements[i] = rotated;
+          break;
+        }
+      }
+    }
+  }
+}
+
+function intersects(a: Placement, b: Placement) {
+  return (
+    a.position.x < b.position.x + b.rotation[0] &&
+    a.position.x + a.rotation[0] > b.position.x &&
+    a.position.y < b.position.y + b.rotation[1] &&
+    a.position.y + a.rotation[1] > b.position.y &&
+    a.position.z < b.position.z + b.rotation[2] &&
+    a.position.z + a.rotation[2] > b.position.z
+  );
 }
