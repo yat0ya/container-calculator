@@ -92,7 +92,8 @@ export function pluggerAlgorithm(
   if (oneMore) {
     placements.push(oneMore);
   }
-
+  applyGravity(placements);
+  applySidePull(placements); // already pulls X and ZF
   return {
     totalBoxes: placements.length,
     placements,
