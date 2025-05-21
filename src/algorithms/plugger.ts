@@ -1,9 +1,9 @@
 import { BoxDimensions, Container, CalculationResult, Placement } from '../types';
 import { convertToMeters } from '../utils';
 
-const EPSILON = 1e-6;
-const MIN_VOLUME = 1e-6;
-const MAX_ITERATIONS = 50;
+const EPSILON = 1e-3;
+const MIN_VOLUME = 1e-3;
+const MAX_ITERATIONS = 10;
 
 export function pluggerAlgorithm(box: BoxDimensions, container: Container): CalculationResult {
   const boxInMeters = convertToMeters(box);
