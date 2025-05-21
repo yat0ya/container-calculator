@@ -34,11 +34,16 @@ export interface CalculationResult {
   boxInMeters: BoxDimensions;
 
   totalWeight?: number;
-  maxPossibleBoxes?: number;
   totalValue?: number;
 
   // Used only by grid-based/basic algorithm
   lengthFit?: number;
   heightFit?: number;
   widthFit?: number;
+}
+
+export interface CalculationInput {
+  boxDimensions: BoxDimensions;
+  container: Container;
+  algorithm: Algorithm;
 }
