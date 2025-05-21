@@ -35,6 +35,7 @@ export interface CalculationResult {
 
   totalWeight?: number;
   totalValue?: number;
+  maxPossibleBoxes?: number;
 
   // Used only by grid-based/basic algorithm
   lengthFit?: number;
