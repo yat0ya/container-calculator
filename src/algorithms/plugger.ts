@@ -34,7 +34,6 @@ export function pluggerAlgorithm(box: BoxDimensions, container: Container): Calc
   if (oneMore) placements.push(oneMore);
   applyGravity(placements);
   applySidePull(placements);
-  logFlyingGroups(placements);
 
   return {
     totalBoxes: placements.length,
@@ -105,23 +104,6 @@ function createMemoKey(origin: { x: number; y: number; z: number }, space: { len
     round(space.height),
     round(space.width),
   ].join(',');
-}
-
-function logFlyingGroups(placements: Placement[]) {
-  const isSupported = (box: Placement) => {
-    if (Math.abs(box.position.y) < EPSILON) return true;
-    return placements.some(other =>
-      other !== box &&
-      Math.abs(box.position.y - (other.position.y + other.rotation[1])) < EPSILON &&
-      !(box.position.x + box.rotation[0] <= other.position.x ||
-        other.position.x + other.rotation[0] <= box.position.x ||
-        box.position.z + box.rotation[2] <= other.position.z ||
-        other.position.z + other.rotation[2] <= box.position.z)
-    );
-  };
-
-  const flying = placements.filter(p => !isSupported(p));
-  console.log(`🚨 Flying box groups detected: ${flying.length}`);
 }
 
 function applyGravity(placements: Placement[]) {
