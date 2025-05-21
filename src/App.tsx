@@ -10,7 +10,6 @@ import { pluggerAlgorithm } from './algorithms/plugger';
 import { DEFAULT_CONTAINER, CONTAINERS } from './constants';
 import { Algorithm } from './types';
 
-
 function App() {
   const [boxDimensions, setBoxDimensions] = useState<BoxDimensions>({
     length: 79.4,
@@ -46,12 +45,9 @@ function App() {
     
     const newResult = algorithm(boxDimensions, selectedContainer);
     
-    // Add weight and value calculations
     if (boxDimensions.weight !== undefined) {
       newResult.totalWeight = newResult.totalBoxes * boxDimensions.weight;
-      // Calculate max possible boxes based on weight
       newResult.maxPossibleBoxes = newResult.totalBoxes;
-      // Adjust total boxes if weight limit is exceeded
       if (newResult.totalWeight > selectedContainer.maxLoad) {
         const maxBoxes = Math.floor(selectedContainer.maxLoad / boxDimensions.weight);
         newResult.totalBoxes = maxBoxes;
@@ -68,6 +64,34 @@ function App() {
     
     setResult(newResult);
     setIsCalculating(false);
+  };
+
+  const calculateViaApi = async () => {
+    try {
+      setIsCalculating(true);
+      const response = await fetch('http://localhost:3000/calculate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          boxDimensions,
+          container: selectedContainer,
+          algorithm: selectedAlgorithm,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('API calculation failed');
+      }
+
+      const newResult = await response.json();
+      setResult(newResult);
+    } catch (error) {
+      console.error('API calculation error:', error);
+    } finally {
+      setIsCalculating(false);
+    }
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -104,9 +128,9 @@ function App() {
             onContainerChange={handleContainerChange}
             onCalculate={() => {
               setIsCalculating(true);
-              // Add a small delay to allow the UI to update
               setTimeout(calculateResult, 100);
             }}
+            onCalculateApi={calculateViaApi}
             isCalculating={isCalculating}
           />
           {result && !isCalculating && (
@@ -133,4 +157,4 @@ function App() {
   );
 }
 
-export default App
+export default App;

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calculator, Loader2 } from 'lucide-react';
+import { Calculator, Loader2, Server } from 'lucide-react';
 import { Algorithm, BoxDimensions, Container } from '../types';
 import { ALGORITHMS, CONTAINERS } from '../constants';
 import { version } from '../../package.json';
@@ -12,6 +12,7 @@ interface BoxDimensionsFormProps {
   onAlgorithmChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
   onContainerChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
   onCalculate: () => void;
+  onCalculateApi: () => void;
   isCalculating: boolean;
 }
 
@@ -23,6 +24,7 @@ export function BoxDimensionsForm({
   onAlgorithmChange,
   onContainerChange,
   onCalculate,
+  onCalculateApi,
   isCalculating
 }: BoxDimensionsFormProps) {
   return (
@@ -128,18 +130,34 @@ export function BoxDimensionsForm({
           </div>
         </div>
 
-        <button
-          onClick={onCalculate}
-          disabled={isCalculating}
-          className="w-full bg-blue-600 text-white py-3 rounded-md hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 disabled:bg-blue-400 disabled:cursor-not-allowed"
-        >
-          {isCalculating ? (
-            <Loader2 className="w-5 h-5 animate-spin" />
-          ) : (
-            <Calculator className="w-5 h-5" />
-          )}
-          {isCalculating ? 'Calculating...' : 'Calculate'}
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={onCalculate}
+            disabled={isCalculating}
+            className="flex-1 bg-blue-600 text-white py-3 rounded-md hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 disabled:bg-blue-400 disabled:cursor-not-allowed"
+          >
+            {isCalculating ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <Calculator className="w-5 h-5" />
+            )}
+            {isCalculating ? 'Calculating...' : 'Calculate'}
+          </button>
+          
+          <button
+            onClick={onCalculateApi}
+            disabled={isCalculating}
+            className="bg-green-600 text-white px-4 py-3 rounded-md hover:bg-green-700 transition-colors flex items-center justify-center gap-2 disabled:bg-green-400 disabled:cursor-not-allowed"
+            title="Calculate via API"
+          >
+            {isCalculating ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <Server className="w-5 h-5" />
+            )}
+            {isCalculating ? 'Calculating...' : 'API'}
+          </button>
+        </div>
       </div>
     </>
   );
