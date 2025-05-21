@@ -10,8 +10,9 @@ export function pluggerAlgorithm(box: BoxDimensions, container: Container): Calc
   const orientations = generateOrientations(boxInMeters);
   const placements = packBoxes(container, orientations);
 
-  applyGravity(placements);
-  applySidePull(placements);
+  applyPull(placements, 'down');
+  applyPull(placements, 'left');
+  applyPull(placements, 'back');
 
   placements.push(...greedyResidualFill(placements, container, orientations));
 
@@ -22,18 +23,20 @@ export function pluggerAlgorithm(box: BoxDimensions, container: Container): Calc
 
   optimizeOrientations(placements, container, orientations);
 
-  applyGravity(placements);
-  applySidePull(placements);
-
+  applyPull(placements, 'down');
+  applyPull(placements, 'left');
+  applyPull(placements, 'back');
   placements.push(...finalInsertionSweep(placements, container, orientations));
-  
-  applyGravity(placements);
-  applySidePull(placements);
+
+  applyPull(placements, 'down');
+  applyPull(placements, 'left');
+  applyPull(placements, 'back');
 
   oneMore = tryPlaceOneFinalBox(placements, container, orientations);
   if (oneMore) placements.push(oneMore);
-  applyGravity(placements);
-  applySidePull(placements);
+  applyPull(placements, 'down');
+  applyPull(placements, 'left');
+  applyPull(placements, 'back');
 
   return {
     totalBoxes: placements.length,
@@ -106,84 +109,65 @@ function createMemoKey(origin: { x: number; y: number; z: number }, space: { len
   ].join(',');
 }
 
-function applyGravity(placements: Placement[]) {
-  let moved = false;
+type Axis = 'x' | 'y' | 'z';
+type PullDirection = 'down' | 'up' | 'left' | 'right' | 'back' | 'forward';
+
+const directionMap: Record<PullDirection, { axis: Axis; sign: -1 | 1 }> = {
+  down: { axis: 'y', sign: -1 },
+  up: { axis: 'y', sign: 1 },
+  left: { axis: 'x', sign: -1 },
+  right: { axis: 'x', sign: 1 },
+  back: { axis: 'z', sign: -1 },
+  forward: { axis: 'z', sign: 1 },
+};
+
+function applyPull(placements: Placement[], direction: PullDirection): void {
+  const { axis, sign } = directionMap[direction];
+  const axisIdx = axis === 'x' ? 0 : axis === 'y' ? 1 : 2;
+  const orthogonalAxes = ['x', 'y', 'z'].filter(a => a !== axis) as Axis[];
+  const orthoIdx = orthogonalAxes.map(a => (a === 'x' ? 0 : a === 'y' ? 1 : 2));
+
+  let moved: boolean;
   let iterations = 0;
+
   do {
     moved = false;
     iterations++;
 
     for (const box of placements) {
-      if (Math.abs(box.position.y) < EPSILON) continue;
+      const currentPos = box.position[axis];
+      let targetPos = sign === -1 ? 0 : Number.POSITIVE_INFINITY;
 
-      let minY = 0;
       for (const other of placements) {
         if (other === box) continue;
 
-        const xOverlap = !(box.position.x + box.rotation[0] <= other.position.x ||
-          other.position.x + other.rotation[0] <= box.position.x);
-        const zOverlap = !(box.position.z + box.rotation[2] <= other.position.z ||
-          other.position.z + other.rotation[2] <= box.position.z);
+        const overlaps = orthoIdx.every(i => {
+          const ortho = ['x', 'y', 'z'][i] as Axis;
+          return !(box.position[ortho] + box.rotation[i] <= other.position[ortho] ||
+            other.position[ortho] + other.rotation[i] <= box.position[ortho]);
+        });
 
-        if (xOverlap && zOverlap) {
-          const potentialY = other.position.y + other.rotation[1];
-          if (potentialY <= box.position.y + EPSILON && potentialY > minY) {
-            minY = potentialY;
-          }
+        if (!overlaps) continue;
+
+        const otherEdge = sign === -1
+          ? other.position[axis] + other.rotation[axisIdx]
+          : other.position[axis];
+
+        if (sign === -1 && otherEdge <= currentPos + EPSILON && otherEdge > targetPos) {
+          targetPos = otherEdge;
+        } else if (sign === 1 && otherEdge >= currentPos - EPSILON && otherEdge < targetPos) {
+          targetPos = otherEdge;
         }
       }
 
-      if (Math.abs(box.position.y - minY) > EPSILON) {
-        box.position.y = minY;
+      if (Math.abs(currentPos - targetPos) > EPSILON) {
+        box.position[axis] = targetPos;
         moved = true;
       }
     }
   } while (moved && iterations < MAX_ITERATIONS);
 }
 
-function applySidePull(placements: Placement[]) {
-  let moved;
-  let iterations = 0;
-
-  do {
-    moved = false;
-    iterations++;
-    for (const axis of ['x', 'z'] as const) {
-      const ortho = axis === 'x' ? 'z' : 'x';
-      const sizeIdx = axis === 'x' ? 0 : 2;
-      const orthoIdx = axis === 'x' ? 2 : 0;
-
-      for (const box of placements) {
-        let minPos = 0;
-        for (const other of placements) {
-          if (other === box) continue;
-
-          const orthoOverlap = !(
-            box.position[ortho] + box.rotation[orthoIdx] <= other.position[ortho] ||
-            other.position[ortho] + other.rotation[orthoIdx] <= box.position[ortho]
-          );
-
-          const yOverlap = !(
-            box.position.y + box.rotation[1] <= other.position.y ||
-            other.position.y + other.rotation[1] <= box.position.y
-          );
-
-          if (orthoOverlap && yOverlap) {
-            const otherEnd = other.position[axis] + other.rotation[sizeIdx];
-            if (otherEnd <= box.position[axis] + EPSILON && otherEnd > minPos) {
-              minPos = otherEnd;
-            }
-          }
-        }
-
-        if (Math.abs(box.position[axis] - minPos) > EPSILON) {
-          box.position[axis] = minPos;
-          moved = true;
-        }
-      }
-    }
-  } while (moved && iterations < MAX_ITERATIONS);
-}
 
 function greedyResidualFill(basePlacements: Placement[], container: Container, boxDims: [number, number, number][]): Placement[] {
   const newPlacements: Placement[] = [];
