@@ -15,7 +15,7 @@ export function pluggerAlgorithm(box: BoxDimensions, container: Container): Calc
 
   placements.push(...greedyResidualFill(placements, container, orientations));
 
-  const oneMore = tryPlaceOneFinalBox(placements, container, orientations);
+  let oneMore = tryPlaceOneFinalBox(placements, container, orientations);
   if (oneMore) placements.push(oneMore);
 
   placements.push(...finalInsertionSweep(placements, container, orientations));
@@ -26,10 +26,14 @@ export function pluggerAlgorithm(box: BoxDimensions, container: Container): Calc
   applySidePull(placements);
 
   placements.push(...finalInsertionSweep(placements, container, orientations));
-
+  
   applyGravity(placements);
   applySidePull(placements);
 
+  oneMore = tryPlaceOneFinalBox(placements, container, orientations);
+  if (oneMore) placements.push(oneMore);
+  applyGravity(placements);
+  applySidePull(placements);
   logFlyingGroups(placements);
 
   return {
