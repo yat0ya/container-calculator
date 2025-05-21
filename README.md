@@ -48,26 +48,31 @@ npm run build
 
 ## Recursive Algorithm (Toya Plugger)
 
-The recursive algorithm (Toya Plugger) implements a space-filling approach to maximize container utilization. Here's how it works:
+The recursive algorithm—internally called the "Toya Plugger"—employs a divide-and-conquer strategy to maximize box placements within a container. It recursively partitions the container space to tightly fit as many boxes as possible, considering all valid rotations and physical constraints.
 
-1. **Space Analysis**: The algorithm starts with the entire container as a single space and recursively:
-   - Attempts to fill the main space with boxes in the most efficient orientation
-   - Identifies remaining unfilled spaces
-   - Continues filling these spaces until no more boxes can fit
+### How It Works
 
-2. **Rotation Optimization**: For each space, the algorithm:
-   - Tests all possible box rotations (6 possible orientations)
-   - Selects the orientation that yields the highest box count
-   - Ensures boxes are packed tightly without gaps
+1. **Initial Placement**:
+   - The algorithm starts by trying to place a box at a given origin (starting with `(0, 0, 0)`).
+   - It attempts every valid orientation (length × width × height permutations) and checks if the box fits in the remaining space.
 
-3. **Space Division**: After filling a space, the algorithm:
-   - Divides the remaining space into smaller sections
-   - Processes these sections in three directions:
-     - Length (right)
-     - Width (front)
-     - Height (top)
+2. **Best Orientation Selection**:
+   - For each fitting orientation, it calculates how many boxes can be placed in a grid pattern.
+   - The orientation yielding the maximum number of boxes is selected.
 
-4. **Weight Constraints**: The algorithm:
-   - Considers container weight limits
-   - Adjusts the total box count if weight limits are exceeded
-   - Maintains the optimal arrangement while respecting weight restrictions
+3. **Recursive Subdivision**:
+   - After placing boxes, the remaining unfilled volume is split into three new subspaces:
+     - Space to the right of the placed boxes
+     - Space in front of the placed boxes
+     - Space above the placed boxes
+   - The algorithm recurses into each subspace to continue placing boxes.
+
+4. **Boundary Checks**:
+   - The algorithm ensures that no boxes exceed the container’s dimensions.
+   - It skips subdivisions where dimensions are zero or negative to prevent unnecessary recursion.
+
+5. **Weight Handling**:
+   - Post-placement, if the total weight exceeds the container’s max load, the result is trimmed to the allowed limit.
+   - This ensures safety and feasibility of the final arrangement.
+
+This approach offers an effective trade-off between simplicity and packing efficiency. It is particularly well-suited for scenarios where tight, grid-aligned packing is desired.
