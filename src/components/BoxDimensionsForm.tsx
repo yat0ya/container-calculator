@@ -147,7 +147,7 @@ export function BoxDimensionsForm({
           <button
             onClick={onCalculateApi}
             disabled={isCalculating}
-            className="bg-green-600 text-white px-4 py-3 rounded-md hover:bg-green-700 transition-colors flex items-center justify-center gap-2 disabled:bg-green-400 disabled:cursor-not-allowed"
+            className="bg-blue-600 text-white px-4 py-3 rounded-md hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 disabled:bg-blue-400 disabled:cursor-not-allowed"
             title="Calculate via API"
           >
             {isCalculating ? (
