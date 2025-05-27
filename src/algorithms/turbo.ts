@@ -57,80 +57,108 @@ function generateOrientations(box: BoxDimensions): [number, number, number][] {
   ];
 }
 
-
-
-export function packBoxes(container: Container, orientations: [number, number, number][]): Placement[] {
-  const allOrientations: [number, number, number][] = orientations.flatMap(([l, h, w]) => ([
-    [l, h, w],
-    [l, w, h],
-    [h, l, w],
-    [h, w, l],
-    [w, l, h],
-    [w, h, l],
-  ]));
-
+export function packBoxes(
+  container: Container,
+  orientations: [number, number, number][]
+): Placement[] {
   const containerWidth = container.width;
   const containerHeight = container.height;
 
+  // Deduplicate orientations
+  const allOrientations: [number, number, number][] = Array.from(
+    new Set(
+      orientations
+        .flatMap(([l, h, w]) => [
+          [l, h, w],
+          [l, w, h],
+          [h, l, w],
+          [h, w, l],
+          [w, l, h],
+          [w, h, l],
+        ])
+        .map((triple) => JSON.stringify(triple))
+    )
+  ).map((s) => JSON.parse(s));
+
   let bestLayout: {
-    layout: [number, number, number][],
-    score: number
+    layout: [number, number, number][];
+    score: number;
   } | null = null;
 
-  function generateColumnLayouts(current: [number, number, number][], remainingWidth: number) {
-    const totalWidth = current.reduce((sum, [, , w]) => sum + w, 0);
+  const startTime = Date.now();
+  const TIME_LIMIT_MS = 1000; // 1 second limit, adjust as needed
+  const MAX_DEPTH = 30; // limit recursion depth to avoid stack overflow
 
-    if (totalWidth <= containerWidth && current.length > 0) {
-      const totalArea = current.reduce((sum, [, h, w]) => {
-        const fit = Math.floor(containerHeight / h);
-        return sum + fit * h * w;
-      }, 0);
+  const memo = new Set<string>();
 
-      // grouping score: +1 per adjacent column of same width
-      let groupingBonus = 0;
-      for (let i = 1; i < current.length; i++) {
-        if (current[i][2] === current[i - 1][2]) groupingBonus += 1;
-      }
+  function layoutKey(layout: [number, number, number][]) {
+    // Simple string key of widths in layout to identify states
+    return layout.map(([, , w]) => w.toFixed(3)).join(',');
+  }
 
-      const score = totalArea + groupingBonus * 0.01; // small bonus to prefer grouping visually
+  function calcScore(layout: [number, number, number][]) {
+    // Total covered wall area + small grouping bonus
+    const totalArea = layout.reduce((sum, [, h, w]) => {
+      const fit = Math.floor(containerHeight / h);
+      return sum + fit * h * w;
+    }, 0);
 
+    let groupingBonus = 0;
+    for (let i = 1; i < layout.length; i++) {
+      if (layout[i][2] === layout[i - 1][2]) groupingBonus += 1;
+    }
+
+    return totalArea + groupingBonus * 0.01;
+  }
+
+  function backtrack(
+    currentLayout: [number, number, number][],
+    remainingWidth: number,
+    depth: number
+  ) {
+    if (Date.now() - startTime > TIME_LIMIT_MS) return; // time limit exceeded
+    if (depth > MAX_DEPTH) return; // depth limit exceeded
+
+    const key = layoutKey(currentLayout);
+    if (memo.has(key)) return;
+    memo.add(key);
+
+    if (currentLayout.length > 0) {
+      const score = calcScore(currentLayout);
       if (!bestLayout || score > bestLayout.score) {
-        bestLayout = { layout: [...current], score };
+        bestLayout = { layout: [...currentLayout], score };
       }
     }
 
     for (const orientation of allOrientations) {
       const [, , w] = orientation;
+      if (w <= 0.01) continue;
+      if (remainingWidth < w) continue;
 
-      if (remainingWidth >= w) {
-        generateColumnLayouts([...current, orientation], remainingWidth - w);
-      }
+      backtrack([...currentLayout, orientation], remainingWidth - w, depth + 1);
     }
   }
 
-  generateColumnLayouts([], containerWidth);
+  backtrack([], containerWidth, 0);
 
   if (!bestLayout) return [];
 
+  // Build placements from best layout
   const placements: Placement[] = [];
   let z = 0;
-
   for (const [l, h, w] of bestLayout.layout) {
     const countH = Math.floor(containerHeight / h);
-
     for (let i = 0; i < countH; i++) {
       placements.push({
         position: { x: 0, y: i * h, z },
         rotation: [l, h, w],
       });
     }
-
     z += w;
   }
 
   return placements;
 }
-
 
 
 
