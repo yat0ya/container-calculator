@@ -5,7 +5,7 @@ const EPSILON = 1e-3;
 const MIN_VOLUME = 1e-3;
 const MAX_ITERATIONS = 10;
 
-export function pluggerAlgorithm(box: BoxDimensions, container: Container): CalculationResult {
+export function turboAlgorithm(box: BoxDimensions, container: Container): CalculationResult {
   const boxInMeters = convertToMeters(box);
   const orientations = generateOrientations(boxInMeters);
   const placements = packBoxes(container, orientations);

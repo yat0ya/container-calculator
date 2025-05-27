@@ -7,6 +7,7 @@ import { basicAlgorithm } from './algorithms/basic';
 import { recursiveAlgorithm } from './algorithms/recursive';
 import { humanLikeAlgorithm } from './algorithms/humanLike';
 import { pluggerAlgorithm } from './algorithms/plugger';
+import { turboAlgorithm } from './algorithms/turbo';
 import { DEFAULT_CONTAINER, CONTAINERS } from './constants';
 import { Algorithm } from './types';
 
@@ -18,7 +19,7 @@ function App() {
     weight: undefined,
     value: undefined,
   });
-  const [selectedAlgorithm, setSelectedAlgorithm] = useState<Algorithm>('plugger');
+  const [selectedAlgorithm, setSelectedAlgorithm] = useState<Algorithm>('turbo');
   const [selectedContainer, setSelectedContainer] = useState<Container>(DEFAULT_CONTAINER);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [result, setResult] = useState<CalculationResult | null>(null);
@@ -27,6 +28,9 @@ function App() {
   const calculateResult = () => {
     let algorithm;
     switch (selectedAlgorithm) {
+      case 'turbo':
+        algorithm = turboAlgorithm;
+        break;
       case 'basic':
         algorithm = basicAlgorithm;
         break;

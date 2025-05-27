@@ -13,6 +13,11 @@ export const DEFAULT_CONTAINER = CONTAINERS[0];
 
 export const ALGORITHMS = [
   {
+    id: 'turbo',
+    name: 'Toya Turbo',
+    description: 'Optimized for speed',
+  },
+  {
     id: 'plugger',
     name: 'Toya Plugger',
     description: 'Recursive best-fit placement using all orientations.',
