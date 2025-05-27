@@ -8,7 +8,8 @@ const MAX_ITERATIONS = 10;
 export function turboAlgorithm(box: BoxDimensions, container: Container): CalculationResult {
   const boxInMeters = convertToMeters(box);
   const orientations = generateOrientations(boxInMeters);
-  const placements = packBoxes(container, orientations);
+  let placements = packBoxes(container, orientations);
+  placements = repeatPattern(placements, container);
 
   // applyPull(placements, 'down');
   // applyPull(placements, 'left');
@@ -373,4 +374,33 @@ function intersects(a: Placement, b: Placement) {
     a.position.z < b.position.z + b.rotation[2] &&
     a.position.z + a.rotation[2] > b.position.z
   );
+}
+
+
+function repeatPattern(
+  placements: Placement[],
+  container: Container
+): Placement[] {
+  const repeatedPlacements: Placement[] = [];
+
+  for (const placement of placements) {
+    const { position, rotation } = placement;
+    const [boxLength, boxHeight, boxWidth] = rotation;
+
+    let offsetX = position.x;
+
+    while (offsetX + boxLength <= container.length) {
+      repeatedPlacements.push({
+        position: {
+          x: offsetX,
+          y: position.y,
+          z: position.z,
+        },
+        rotation: [boxLength, boxHeight, boxWidth],
+      });
+      offsetX += boxLength;
+    }
+  }
+
+  return repeatedPlacements;
 }
