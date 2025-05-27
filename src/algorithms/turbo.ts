@@ -8,7 +8,7 @@ const MAX_ITERATIONS = 10;
 export function turboAlgorithm(box: BoxDimensions, container: Container): CalculationResult {
   const boxInMeters = convertToMeters(box);
   const orientations = generateOrientations(boxInMeters);
-  let placements = packBoxes(container, orientations);
+  let placements = buildWall(container, orientations);
   placements = repeatPattern(placements, container);
 
   // applyPull(placements, 'down');
@@ -58,14 +58,14 @@ function generateOrientations(box: BoxDimensions): [number, number, number][] {
   ];
 }
 
-export function packBoxes(
+export function buildWall(
   container: Container,
   orientations: [number, number, number][]
 ): Placement[] {
   const containerWidth = container.width;
   const containerHeight = container.height;
 
-  // Deduplicate orientations
+  // Generate all orientation permutations
   const allOrientations: [number, number, number][] = Array.from(
     new Set(
       orientations
@@ -82,43 +82,93 @@ export function packBoxes(
   ).map((s) => JSON.parse(s));
 
   let bestLayout: {
-    layout: [number, number, number][];
+    layout: [number, number, number][]; // these are widths
     score: number;
   } | null = null;
 
   const startTime = Date.now();
-  const TIME_LIMIT_MS = 1000; // 1 second limit, adjust as needed
-  const MAX_DEPTH = 30; // limit recursion depth to avoid stack overflow
+  const TIME_LIMIT_MS = 1000;
+  const MAX_DEPTH = 30;
 
   const memo = new Set<string>();
 
   function layoutKey(layout: [number, number, number][]) {
-    // Simple string key of widths in layout to identify states
     return layout.map(([, , w]) => w.toFixed(3)).join(',');
   }
 
   function calcScore(layout: [number, number, number][]) {
-    // Total covered wall area + small grouping bonus
-    const totalArea = layout.reduce((sum, [, h, w]) => {
-      const fit = Math.floor(containerHeight / h);
-      return sum + fit * h * w;
-    }, 0);
+    let score = 0;
 
-    let groupingBonus = 0;
-    for (let i = 1; i < layout.length; i++) {
-      if (layout[i][2] === layout[i - 1][2]) groupingBonus += 1;
+    for (const [, h, w] of layout) {
+      const bestColumn = findBestColumnPacking(h, w);
+      score += bestColumn.score;
     }
 
-    return totalArea + groupingBonus * 0.01;
+    return score;
   }
+
+  function findBestColumnPacking(heightLimit: number, width: number) {
+  const fits: [number, number, number][] = allOrientations.filter(
+    ([, h, w]) => w === width && h <= heightLimit
+  );
+
+  let bestStack: [number, number, number][] = [];
+  let bestScore = 0;
+
+  function recurse(
+    remainingHeight: number,
+    stack: [number, number, number][]
+  ) {
+    for (const box of fits) {
+      const [, h] = box;
+      if (h > remainingHeight) continue;
+
+      const newStack = [...stack, box];
+      const newScore = newStack.reduce((sum, [, h2, w2]) => sum + h2 * w2, 0);
+
+      if (newScore > bestScore) {
+        bestStack = newStack;
+        bestScore = newScore;
+      }
+
+      recurse(remainingHeight - h, newStack);
+    }
+  }
+
+  recurse(heightLimit, []);
+
+  // Reorder: group identical boxes together, singles on top
+  const grouped = new Map<string, { box: [number, number, number]; count: number }>();
+
+  for (const box of bestStack) {
+    const key = JSON.stringify(box);
+    grouped.set(key, {
+      box,
+      count: (grouped.get(key)?.count ?? 0) + 1,
+    });
+  }
+
+  const reordered: [number, number, number][] = [];
+
+  // First add groups (count > 1), then singles
+  for (const { box, count } of [...grouped.values()].filter(g => g.count > 1)) {
+    for (let i = 0; i < count; i++) reordered.push(box);
+  }
+  for (const { box, count } of [...grouped.values()].filter(g => g.count === 1)) {
+    reordered.push(box);
+  }
+
+  return { score: bestScore, stack: reordered };
+}
+
 
   function backtrack(
     currentLayout: [number, number, number][],
     remainingWidth: number,
     depth: number
   ) {
-    if (Date.now() - startTime > TIME_LIMIT_MS) return; // time limit exceeded
-    if (depth > MAX_DEPTH) return; // depth limit exceeded
+    if (Date.now() - startTime > TIME_LIMIT_MS) return;
+    if (depth > MAX_DEPTH) return;
 
     const key = layoutKey(currentLayout);
     if (memo.has(key)) return;
@@ -133,8 +183,7 @@ export function packBoxes(
 
     for (const orientation of allOrientations) {
       const [, , w] = orientation;
-      if (w <= 0.01) continue;
-      if (remainingWidth < w) continue;
+      if (w <= 0.01 || remainingWidth < w) continue;
 
       backtrack([...currentLayout, orientation], remainingWidth - w, depth + 1);
     }
@@ -147,14 +196,19 @@ export function packBoxes(
   // Build placements from best layout
   const placements: Placement[] = [];
   let z = 0;
-  for (const [l, h, w] of bestLayout.layout) {
-    const countH = Math.floor(containerHeight / h);
-    for (let i = 0; i < countH; i++) {
+
+  for (const [l, _h, w] of bestLayout.layout) {
+    const column = findBestColumnPacking(containerHeight, w);
+
+    let y = 0;
+    for (const [l2, h2, w2] of column.stack) {
       placements.push({
-        position: { x: 0, y: i * h, z },
-        rotation: [l, h, w],
+        position: { x: 0, y, z },
+        rotation: [l2, h2, w2],
       });
+      y += h2;
     }
+
     z += w;
   }
 

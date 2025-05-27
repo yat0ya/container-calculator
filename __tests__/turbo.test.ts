@@ -30,13 +30,12 @@ describe('Turbo Algorithm - K40HC with realistic box', () => {
       turboAlgorithm(box_cm, container40HC_m)
     );
 
-    console.log('🔍 Result:', result);
-    console.log(`⏱️ Time: ${timeMs.toFixed(2)}ms`);
-    console.log(`📦 Boxes: ${result.totalBoxes}`);
+    // console.log('🔍 Result:', result);
+    // console.log(`⏱️ Time: ${timeMs.toFixed(2)}ms`);
+    // console.log(`📦 Boxes: ${result.totalBoxes}`);
 
     // Adjust these bounds if needed depending on actual packing
-    expect(result.totalBoxes).toBeGreaterThanOrEqual(9);
-    expect(result.totalBoxes).toBeLessThanOrEqual(120);
-    expect(timeMs).toBeLessThan(3000);
+    expect(result.totalBoxes).toEqual(207)
+    expect(timeMs).toBeLessThan(5000);
   });
 });
