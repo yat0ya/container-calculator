@@ -10,33 +10,33 @@ export function turboAlgorithm(box: BoxDimensions, container: Container): Calcul
   const orientations = generateOrientations(boxInMeters);
   const placements = packBoxes(container, orientations);
 
-  applyPull(placements, 'down');
-  applyPull(placements, 'left');
-  applyPull(placements, 'back');
+  // applyPull(placements, 'down');
+  // applyPull(placements, 'left');
+  // applyPull(placements, 'back');
 
-  placements.push(...greedyResidualFill(placements, container, orientations));
+  // placements.push(...greedyResidualFill(placements, container, orientations));
 
-  let oneMore = tryPlaceOneFinalBox(placements, container, orientations);
-  if (oneMore) placements.push(oneMore);
+  // let oneMore = tryPlaceOneFinalBox(placements, container, orientations);
+  // if (oneMore) placements.push(oneMore);
 
-  placements.push(...finalInsertionSweep(placements, container, orientations));
+  // placements.push(...finalInsertionSweep(placements, container, orientations));
 
-  optimizeOrientations(placements, container, orientations);
+  // optimizeOrientations(placements, container, orientations);
 
-  applyPull(placements, 'down');
-  applyPull(placements, 'left');
-  applyPull(placements, 'back');
-  placements.push(...finalInsertionSweep(placements, container, orientations));
+  // applyPull(placements, 'down');
+  // applyPull(placements, 'left');
+  // applyPull(placements, 'back');
+  // placements.push(...finalInsertionSweep(placements, container, orientations));
 
-  applyPull(placements, 'down');
-  applyPull(placements, 'left');
-  applyPull(placements, 'back');
+  // applyPull(placements, 'down');
+  // applyPull(placements, 'left');
+  // applyPull(placements, 'back');
 
-  oneMore = tryPlaceOneFinalBox(placements, container, orientations);
-  if (oneMore) placements.push(oneMore);
-  applyPull(placements, 'down');
-  applyPull(placements, 'left');
-  applyPull(placements, 'back');
+  // oneMore = tryPlaceOneFinalBox(placements, container, orientations);
+  // if (oneMore) placements.push(oneMore);
+  // applyPull(placements, 'down');
+  // applyPull(placements, 'left');
+  // applyPull(placements, 'back');
 
   return {
     totalBoxes: placements.length,
@@ -57,57 +57,82 @@ function generateOrientations(box: BoxDimensions): [number, number, number][] {
   ];
 }
 
-function packBoxes(container: Container, orientations: [number, number, number][]): Placement[] {
-  const memo = new Map<string, Placement[]>();
 
-  function recurse(
-    origin: { x: number; y: number; z: number },
-    space: { length: number; height: number; width: number }
-  ): Placement[] {
-    const volume = space.length * space.height * space.width;
-    if (volume < MIN_VOLUME) return [];
 
-    const key = createMemoKey(origin, space);
-    if (memo.has(key)) return memo.get(key)!;
+export function packBoxes(container: Container, orientations: [number, number, number][]): Placement[] {
+  const allOrientations: [number, number, number][] = orientations.flatMap(([l, h, w]) => ([
+    [l, h, w],
+    [l, w, h],
+    [h, l, w],
+    [h, w, l],
+    [w, l, h],
+    [w, h, l],
+  ]));
 
-    let best: Placement[] = [];
+  const containerWidth = container.width;
+  const containerHeight = container.height;
 
-    for (const [l, h, w] of orientations) {
-      if (l > space.length + EPSILON || h > space.height + EPSILON || w > space.width + EPSILON) continue;
+  let bestLayout: {
+    layout: [number, number, number][],
+    score: number
+  } | null = null;
 
-      const basePlacement: Placement = { position: { ...origin }, rotation: [l, h, w] };
-      const next: Placement[] = [basePlacement];
+  function generateColumnLayouts(current: [number, number, number][], remainingWidth: number) {
+    const totalWidth = current.reduce((sum, [, , w]) => sum + w, 0);
 
-      if (space.length - l > EPSILON)
-        next.push(...recurse({ x: origin.x + l, y: origin.y, z: origin.z }, { length: space.length - l, height: h, width: w }));
+    if (totalWidth <= containerWidth && current.length > 0) {
+      const totalArea = current.reduce((sum, [, h, w]) => {
+        const fit = Math.floor(containerHeight / h);
+        return sum + fit * h * w;
+      }, 0);
 
-      if (space.height - h > EPSILON)
-        next.push(...recurse({ x: origin.x, y: origin.y + h, z: origin.z }, { length: space.length, height: space.height - h, width: w }));
+      // grouping score: +1 per adjacent column of same width
+      let groupingBonus = 0;
+      for (let i = 1; i < current.length; i++) {
+        if (current[i][2] === current[i - 1][2]) groupingBonus += 1;
+      }
 
-      if (space.width - w > EPSILON)
-        next.push(...recurse({ x: origin.x, y: origin.y, z: origin.z + w }, { length: space.length, height: space.height, width: space.width - w }));
+      const score = totalArea + groupingBonus * 0.01; // small bonus to prefer grouping visually
 
-      if (next.length > best.length) best = next;
+      if (!bestLayout || score > bestLayout.score) {
+        bestLayout = { layout: [...current], score };
+      }
     }
 
-    memo.set(key, best);
-    return best;
+    for (const orientation of allOrientations) {
+      const [, , w] = orientation;
+
+      if (remainingWidth >= w) {
+        generateColumnLayouts([...current, orientation], remainingWidth - w);
+      }
+    }
   }
 
-  return recurse({ x: 0, y: 0, z: 0 }, container);
+  generateColumnLayouts([], containerWidth);
+
+  if (!bestLayout) return [];
+
+  const placements: Placement[] = [];
+  let z = 0;
+
+  for (const [l, h, w] of bestLayout.layout) {
+    const countH = Math.floor(containerHeight / h);
+
+    for (let i = 0; i < countH; i++) {
+      placements.push({
+        position: { x: 0, y: i * h, z },
+        rotation: [l, h, w],
+      });
+    }
+
+    z += w;
+  }
+
+  return placements;
 }
 
-function createMemoKey(origin: { x: number; y: number; z: number }, space: { length: number; height: number; width: number }): string {
-  const round = (n: number) => Math.round(n * 100); // reduced precision from *1000
-  return [
-    round(origin.x),
-    round(origin.y),
-    round(origin.z),
-    round(space.length),
-    round(space.height),
-    round(space.width),
-  ].join(',');
-}
+
+
 
 type Axis = 'x' | 'y' | 'z';
 type PullDirection = 'down' | 'up' | 'left' | 'right' | 'back' | 'forward';
