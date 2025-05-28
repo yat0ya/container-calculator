@@ -92,7 +92,7 @@ export function buildWall(container: Container, orientations: [number, number, n
       [l, h, w], [l, w, h], [h, l, w],
       [h, w, l], [w, l, h], [w, h, l],
     ].map(JSON.stringify))
-  )).map(s => JSON.parse(s));
+  )).map(s => JSON.parse(s) as [number, number, number]);
 
   const startTime = Date.now();
   const memo = new Set<string>();
@@ -100,14 +100,19 @@ export function buildWall(container: Container, orientations: [number, number, n
   const MAX_DEPTH = 30;
   let best: { layout: [number, number, number][], score: number } | null = null;
 
+  const columnCache = new Map<string, { score: number; stack: [number, number, number][] }>();
+
   const scoreLayout = (layout: [number, number, number][]): number =>
-    layout.reduce((sum, [, h, w]) => sum + findBestColumnPacking(h, w).score, 0);
+    layout.reduce((sum, [, h, w]) => sum + h * w, 0);
 
   function layoutKey(layout: [number, number, number][]) {
-    return layout.map(([, , w]) => w.toFixed(3)).join(',');
+    return layout.map(([, h, w]) => `${h.toFixed(2)}x${w.toFixed(2)}`).join('|');
   }
 
   function findBestColumnPacking(height: number, width: number) {
+    const cacheKey = `${height.toFixed(2)}-${width.toFixed(2)}`;
+    if (columnCache.has(cacheKey)) return columnCache.get(cacheKey)!;
+
     const fits = allOrientations.filter(([, h, w]) => w === width && h <= height);
     let bestStack: [number, number, number][] = [], bestScore = 0;
 
@@ -125,6 +130,7 @@ export function buildWall(container: Container, orientations: [number, number, n
     }
 
     recurse(height, []);
+
     const grouped = new Map<string, [number, number, number][]>();
     for (const box of bestStack) {
       const key = JSON.stringify(box);
@@ -133,11 +139,14 @@ export function buildWall(container: Container, orientations: [number, number, n
     }
 
     const sorted = [...grouped.values()].sort((a, b) => b.length - a.length).flat();
-    return { score: bestScore, stack: sorted };
+    const result = { score: bestScore, stack: sorted };
+    columnCache.set(cacheKey, result);
+    return result;
   }
 
   function backtrack(layout: [number, number, number][], widthLeft: number, depth: number) {
     if (Date.now() - startTime > TIME_LIMIT || depth > MAX_DEPTH) return;
+
     const key = layoutKey(layout);
     if (memo.has(key)) return;
     memo.add(key);
@@ -147,11 +156,13 @@ export function buildWall(container: Container, orientations: [number, number, n
       if (!best || score > best.score) best = { layout: [...layout], score };
     }
 
-    for (const orientation of allOrientations) {
+    const sorted = allOrientations
+      .filter(([, , w]) => w > 0.01 && w <= widthLeft)
+      .sort((a, b) => b[2] - a[2]); // Wider columns first
+
+    for (const orientation of sorted) {
       const [, , w] = orientation;
-      if (w > 0.01 && widthLeft >= w) {
-        backtrack([...layout, orientation], widthLeft - w, depth + 1);
-      }
+      backtrack([...layout, orientation], widthLeft - w, depth + 1);
     }
   }
 
@@ -174,6 +185,8 @@ export function buildWall(container: Container, orientations: [number, number, n
 
   return placements;
 }
+
+
 
 function repeatPattern(placements: Placement[], container: Container): Placement[] {
   const repeated: Placement[] = [];
