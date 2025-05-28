@@ -27,19 +27,33 @@ function generateTailRepackVariants(
   orientations: [number, number, number][],
   maxVariants: number
 ): Placement[][] {
-  const epsilon = 1e-4;
   const ends = [...new Set(placements.map(p => p.position.x + p.rotation[0]))].sort((a, b) => b - a);
   const variants: Placement[][] = [placements];
 
   for (let i = 0; i < Math.min(maxVariants, ends.length); i++) {
     const cutoff = ends[i];
-    const preserved = placements.filter(p => p.position.x < cutoff - epsilon);
+
+    // Remove all boxes that extend beyond or touch the cutoff
+    const preserved = placements.filter(p => p.position.x + p.rotation[0] <= cutoff);
+    const removedCount = placements.length - preserved.length;
+
     const repacked = repackTailLayered(preserved, container, orientations, cutoff);
-    variants.push([...preserved, ...repacked]);
+    const repackedCount = repacked.length;
+
+    const result = [...preserved, ...repacked];
+
+    console.log(`Variant ${i + 1}:`);
+    console.log(` - Removed boxes: ${removedCount}`);
+    console.log(` - Repacked boxes: ${repackedCount}`);
+    console.log(` - Total after repack: ${result.length} boxes`);
+
+    variants.push(result);
   }
 
   return variants;
 }
+
+
 
 function repackTailLayered(
   preserved: Placement[],
@@ -47,37 +61,40 @@ function repackTailLayered(
   orientations: [number, number, number][],
   minX: number
 ): Placement[] {
-  const epsilon = 1e-4;
   const repacked: Placement[] = [];
   const sorted = [...orientations].sort((a, b) => a[0] - b[0]);
 
-  for (let x = minX; x < container.length + epsilon; x += 0.01) {
+  for (let x = minX; x + sorted[0][0] <= container.length; x += 0.01) {
     for (const [l, h, w] of sorted) {
-      if (x + l > container.length + epsilon) continue;
+      if (x + l > container.length) continue;
 
       const yMax = Math.floor(container.height / h);
       const zMax = Math.floor(container.width / w);
 
       for (let zi = 0; zi <= zMax; zi++) {
         const z = zi * w;
-        if (z + w > container.width + epsilon) continue;
+        if (z + w > container.width) continue;
 
         for (let yi = 0; yi <= yMax; yi++) {
           const y = yi * h;
-          if (y + h > container.height + epsilon) continue;
+          if (y + h > container.height) continue;
 
           const candidate: Placement = { position: { x, y, z }, rotation: [l, h, w] };
           const allPlaced = [...preserved, ...repacked];
 
           const supported = y === 0 || allPlaced.some(b =>
-            Math.abs(b.position.y + b.rotation[1] - y) < epsilon * 10 &&
-            b.position.x < x + l - epsilon && b.position.x + b.rotation[0] > x + epsilon &&
-            b.position.z < z + w - epsilon && b.position.z + b.rotation[2] > z + epsilon
+            b.position.y + b.rotation[1] === y &&
+            b.position.x < x + l &&
+            b.position.x + b.rotation[0] > x &&
+            b.position.z < z + w &&
+            b.position.z + b.rotation[2] > z
           );
 
-          const collides = allPlaced.some(b => boxesOverlap(b, candidate, epsilon));
+          const collides = allPlaced.some(b => boxesOverlap(b, candidate));
 
-          if (!collides && supported) repacked.push(candidate);
+          if (!collides && supported) {
+            repacked.push(candidate);
+          }
         }
       }
     }
@@ -85,6 +102,7 @@ function repackTailLayered(
 
   return repacked;
 }
+
 
 export function buildWall(container: Container, orientations: [number, number, number][]): Placement[] {
   const allOrientations = Array.from(new Set(
@@ -231,13 +249,14 @@ function repeatPattern(placements: Placement[], container: Container): Placement
   return repeated;
 }
 
-function boxesOverlap(a: Placement, b: Placement, epsilon = 1e-6): boolean {
+function boxesOverlap(a: Placement, b: Placement): boolean {
   return !(
-    a.position.x + a.rotation[0] <= b.position.x + epsilon ||
-    a.position.x >= b.position.x + b.rotation[0] - epsilon ||
-    a.position.y + a.rotation[1] <= b.position.y + epsilon ||
-    a.position.y >= b.position.y + b.rotation[1] - epsilon ||
-    a.position.z + a.rotation[2] <= b.position.z + epsilon ||
-    a.position.z >= b.position.z + b.rotation[2] - epsilon
+    a.position.x + a.rotation[0] <= b.position.x ||
+    b.position.x + b.rotation[0] <= a.position.x ||
+    a.position.y + a.rotation[1] <= b.position.y ||
+    b.position.y + b.rotation[1] <= a.position.y ||
+    a.position.z + a.rotation[2] <= b.position.z ||
+    b.position.z + b.rotation[2] <= a.position.z
   );
 }
+
