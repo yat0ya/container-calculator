@@ -158,7 +158,7 @@ export function buildWall(container: Container, orientations: [number, number, n
 
     const sorted = allOrientations
       .filter(([, , w]) => w > 0.01 && w <= widthLeft)
-      .sort((a, b) => b[2] - a[2]); // Wider columns first
+      .sort((a, b) => b[2] - a[2]);
 
     for (const orientation of sorted) {
       const [, , w] = orientation;
@@ -170,22 +170,52 @@ export function buildWall(container: Container, orientations: [number, number, n
 
   if (!best) return [];
 
+  // Count how often each rotation occurs
+  const rotationCounts = new Map<string, number>();
+  for (const rot of best.layout) {
+    const key = JSON.stringify(rot);
+    rotationCounts.set(key, (rotationCounts.get(key) || 0) + 1);
+  }
+
+  // Sort layout by frequency descending
+  const sortedLayout = best.layout.slice().sort((a, b) => {
+    const countA = rotationCounts.get(JSON.stringify(a)) || 0;
+    const countB = rotationCounts.get(JSON.stringify(b)) || 0;
+    return countB - countA;
+  });
+
   const placements: Placement[] = [];
   let z = 0;
 
-  for (const [, , w] of best.layout) {
+  for (const [l, h, w] of sortedLayout) {
     const { stack } = findBestColumnPacking(container.height, w);
-    let y = 0;
-    for (const [l, h, w2] of stack) {
-      placements.push({ position: { x: 0, y, z }, rotation: [l, h, w2] });
-      y += h;
+
+    // Count rotation frequencies in the column stack
+    const localCounts = new Map<string, number>();
+    for (const rot of stack) {
+      const key = JSON.stringify(rot);
+      localCounts.set(key, (localCounts.get(key) || 0) + 1);
     }
+
+    // Sort so frequent orientations go to the bottom (placed first)
+    const sortedStack = stack.slice().sort((a, b) => {
+      const countA = localCounts.get(JSON.stringify(a)) || 0;
+      const countB = localCounts.get(JSON.stringify(b)) || 0;
+      return countB - countA;
+    });
+
+    let y = 0;
+    for (const [l2, h2, w2] of sortedStack) {
+      placements.push({ position: { x: 0, y, z }, rotation: [l2, h2, w2] });
+      y += h2;
+    }
+
     z += w;
   }
 
+
   return placements;
 }
-
 
 
 function repeatPattern(placements: Placement[], container: Container): Placement[] {
