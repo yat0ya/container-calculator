@@ -156,8 +156,8 @@ export function buildWall(container: Container, orientations: [number, number, n
     const sortedStack = stack.slice().sort((a, b) => {
       const countA = localCounts.get(JSON.stringify(a)) || 0;
       const countB = localCounts.get(JSON.stringify(b)) || 0;
-      return countA - countB;
-    });
+      return countA - countB; // least frequent last
+    }).reverse(); // So we stack bottom-up, least frequent ends up on top
 
     let y = 0;
     for (const [l2, h2, w2] of sortedStack) {
