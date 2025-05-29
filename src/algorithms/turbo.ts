@@ -33,7 +33,7 @@ function generateTailRepackVariants(
     const cutoff = ends[i];
     const preserved = placements.filter(p => p.position.x + p.rotation[0] <= cutoff);
     const removedCount = placements.length - preserved.length;
-    const repacked = repackTailLayered(preserved, container, orientations, cutoff);
+    const repacked = repackTail(preserved, container, orientations, cutoff);
     const repackedCount = repacked.length;
     const result = [...preserved, ...repacked];
 
@@ -48,7 +48,7 @@ function generateTailRepackVariants(
   return variants;
 }
 
-function repackTailLayered(
+function repackTail(
   preserved: Placement[],
   container: Container,
   orientations: [number, number, number][],
