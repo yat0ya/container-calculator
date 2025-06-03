@@ -6,10 +6,11 @@ export function turboAlgorithm(box: BoxDimensions, container: Container): Calcul
   const orientations = generateOrientations(boxInMeters);
   const initialWall = buildWall(container, orientations);
   const repeated = repeatPattern(initialWall, container);
-  const variants = generateTailRepackVariants(repeated, container, orientations, 5);
-  const best = variants.reduce((a, b) => (b.length > a.length ? b : a));
 
-  return { totalBoxes: best.length, placements: best, boxInMeters };
+  const tailArea = prepareTailArea(repeated, container);
+  const filledTail = fillTailArea(tailArea, container, orientations);
+
+  return { totalBoxes: repeated.length + filledTail.length, placements: [...repeated, ...filledTail], boxInMeters };
 }
 
 function generateOrientations({ length, width, height }: BoxDimensions): [number, number, number][] {
@@ -18,70 +19,6 @@ function generateOrientations({ length, width, height }: BoxDimensions): [number
     [width, length, height], [width, height, length],
     [height, length, width], [height, width, length],
   ];
-}
-
-function generateTailRepackVariants(
-  placements: Placement[],
-  container: Container,
-  orientations: [number, number, number][],
-  maxVariants: number
-): Placement[][] {
-  const ends = [...new Set(placements.map(p => p.position.x + p.rotation[0]))].sort((a, b) => b - a);
-  const variants: Placement[][] = [placements];
-
-  for (let i = 0; i < Math.min(maxVariants, ends.length); i++) {
-    const cutoff = ends[i];
-    const preserved = placements.filter(p => p.position.x + p.rotation[0] <= cutoff);
-    const removedCount = placements.length - preserved.length;
-    const repacked = repackTail(preserved, container, orientations, cutoff);
-    const repackedCount = repacked.length;
-    const result = [...preserved, ...repacked];
-
-    console.log(`Variant ${i + 1}:`);
-    console.log(` - Removed boxes: ${removedCount}`);
-    console.log(` - Repacked boxes: ${repackedCount}`);
-    console.log(` - Total after repack: ${result.length} boxes`);
-
-    variants.push(result);
-  }
-
-  return variants;
-}
-
-function repackTail(
-  preserved: Placement[],
-  container: Container,
-  orientations: [number, number, number][],
-  minX: number
-): Placement[] {
-  const repacked: Placement[] = [];
-  const sorted = [...orientations].sort((a, b) => a[0] - b[0]);
-
-  for (let x = minX; x + sorted[0][0] <= container.length; x += 0.01) {
-    for (const [l, h, w] of sorted) {
-      if (x + l > container.length) continue;
-      for (let z = 0; z + w <= container.width; z += w) {
-        for (let y = 0; y + h <= container.height; y += h) {
-          const candidate: Placement = { position: { x, y, z }, rotation: [l, h, w] };
-          const all = [...preserved, ...repacked];
-
-          const supported = y === 0 || all.some(b =>
-            b.position.y + b.rotation[1] === y &&
-            b.position.x < x + l && b.position.x + b.rotation[0] > x &&
-            b.position.z < z + w && b.position.z + b.rotation[2] > z
-          );
-
-          const collides = all.some(b => boxesOverlap(b, candidate));
-
-          if (!collides && supported) {
-            repacked.push(candidate);
-          }
-        }
-      }
-    }
-  }
-
-  return repacked;
 }
 
 export function buildWall(container: Container, orientations: [number, number, number][]): Placement[] {
@@ -206,13 +143,73 @@ function repeatPattern(placements: Placement[], container: Container): Placement
   return repeated;
 }
 
-function boxesOverlap(a: Placement, b: Placement): boolean {
-  return !(
-    a.position.x + a.rotation[0] <= b.position.x ||
-    b.position.x + b.rotation[0] <= a.position.x ||
-    a.position.y + a.rotation[1] <= b.position.y ||
-    b.position.y + b.rotation[1] <= a.position.y ||
-    a.position.z + a.rotation[2] <= b.position.z ||
-    b.position.z + b.rotation[2] <= a.position.z
-  );
+function prepareTailArea(placements: Placement[], container: Container): { x: number, length: number, occupied: Placement[] } {
+  // Find furthest X extent using x + l across all placements
+  let maxX = 0;
+  for (const p of placements) {
+    const endX = p.position.x + p.rotation[0];
+    if (endX > maxX) maxX = endX;
+  }
+
+  // Account for floating-point precision by snapping to nearest cm (0.01m)
+  const EPSILON = 1e-6;
+  const snappedMaxX = Math.min(container.length, Math.ceil((maxX + EPSILON) * 100) / 100);
+
+  const remainingLength = container.length - snappedMaxX;
+
+  return {
+    x: snappedMaxX,
+    length: remainingLength,
+    occupied: placements
+  };
 }
+
+
+function fillTailArea(
+  tail: { x: number, length: number, occupied: Placement[] },
+  container: Container,
+  orientations: [number, number, number][]
+): Placement[] {
+  const occupied = [...tail.occupied];
+  const newPlacements: Placement[] = [];
+
+  const step = Math.min(...orientations.flat()) / 4;
+  const sorted = [...orientations].sort((a, b) => b[0] * b[1] * b[2] - a[0] * a[1] * a[2]);
+
+  const EPSILON = 1e-6;
+
+  const isFree = (x: number, y: number, z: number, l: number, h: number, w: number) =>
+    !occupied.some(p =>
+      x < p.position.x + p.rotation[0] - EPSILON &&
+      x + l > p.position.x + EPSILON &&
+      y < p.position.y + p.rotation[1] - EPSILON &&
+      y + h > p.position.y + EPSILON &&
+      z < p.position.z + p.rotation[2] - EPSILON &&
+      z + w > p.position.z + EPSILON
+    );
+
+  for (let y = 0; y + step <= container.height; y += step) {
+    for (let x = 0; x + step <= tail.length; x += step) {
+      for (let z = 0; z + step <= container.width; z += step) {
+        for (const [l, h, w] of sorted) {
+          const absX = x + tail.x;
+          if (
+            absX + l <= container.length + EPSILON &&
+            y + h <= container.height + EPSILON &&
+            z + w <= container.width + EPSILON &&
+            isFree(absX, y, z, l, h, w)
+          ) {
+            const placement: Placement = { position: { x: absX, y, z }, rotation: [l, h, w] };
+            newPlacements.push(placement);
+            occupied.push(placement);
+            break; // move to next position after successful placement
+          }
+        }
+      }
+    }
+  }
+
+  return newPlacements;
+}
+
+
