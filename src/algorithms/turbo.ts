@@ -62,14 +62,12 @@ export function buildWall(container: Container, orientations: [number, number, n
   backtrack([], container.width, 0);
   if (!best.length) return [];
 
-  // Count orientation frequency in wall layout
   const rotationCounts = new Map<string, number>();
   for (const rot of best) {
     const key = JSON.stringify(rot);
     rotationCounts.set(key, (rotationCounts.get(key) || 0) + 1);
   }
 
-  // Sort wall layout: more frequent orientations first (i.e. less frequent to air gaps)
   const sortedLayout = best.slice().sort((a, b) => {
     const countA = rotationCounts.get(JSON.stringify(a)) || 0;
     const countB = rotationCounts.get(JSON.stringify(b)) || 0;
@@ -81,33 +79,29 @@ export function buildWall(container: Container, orientations: [number, number, n
 
   for (const [l, h, w] of sortedLayout) {
     const stack = stackColumn(allOrientations, container.height, w);
-
-    // Count frequency in stack for sorting top-down
     const localCounts = new Map<string, number>();
+    
     for (const rot of stack) {
       const key = JSON.stringify(rot);
       localCounts.set(key, (localCounts.get(key) || 0) + 1);
     }
 
-    // Sort stack: less frequent on top
     const sortedStack = stack.slice().sort((a, b) => {
       const countA = localCounts.get(JSON.stringify(a)) || 0;
       const countB = localCounts.get(JSON.stringify(b)) || 0;
-      return countA - countB; // least frequent last
-    }).reverse(); // So we stack bottom-up, least frequent ends up on top
+      return countA - countB;
+    }).reverse();
 
     let y = 0;
     for (const [l2, h2, w2] of sortedStack) {
       placements.push({ position: { x: 0, y, z }, rotation: [l2, h2, w2] });
       y += h2;
     }
-
     z += w;
   }
 
   return placements;
 }
-
 
 function stackColumn(orientations: [number, number, number][], height: number, width: number): [number, number, number][] {
   const fits = orientations.filter(([, h, w]) => w === width && h <= height);
@@ -132,10 +126,11 @@ function stackColumn(orientations: [number, number, number][], height: number, w
 
 function repeatPattern(placements: Placement[], container: Container): Placement[] {
   const repeated: Placement[] = [];
+  const EPSILON = 1e-6;
 
   for (const { position, rotation } of placements) {
     const [l, h, w] = rotation;
-    for (let x = position.x; x + l <= container.length; x += l) {
+    for (let x = position.x; x + l <= container.length + EPSILON; x += l) {
       repeated.push({ position: { x, y: position.y, z: position.z }, rotation: [l, h, w] });
     }
   }
@@ -143,73 +138,129 @@ function repeatPattern(placements: Placement[], container: Container): Placement
   return repeated;
 }
 
-function prepareTailArea(placements: Placement[], container: Container): { x: number, length: number, occupied: Placement[] } {
-  // Find furthest X extent using x + l across all placements
+interface TailArea {
+  startX: number;
+  length: number;
+  heightMap: Map<string, number>;
+}
+
+function prepareTailArea(placements: Placement[], container: Container): TailArea {
+  const EPSILON = 1e-6;
+  const GRID_SIZE = 0.1; // 10cm grid for height mapping
+
+  // Find the furthest X extent
   let maxX = 0;
   for (const p of placements) {
     const endX = p.position.x + p.rotation[0];
     if (endX > maxX) maxX = endX;
   }
 
-  // Account for floating-point precision by snapping to nearest cm (0.01m)
-  const EPSILON = 1e-6;
-  const snappedMaxX = Math.min(container.length, Math.ceil((maxX + EPSILON) * 100) / 100);
+  // Snap to nearest grid point
+  const startX = Math.ceil(maxX / GRID_SIZE) * GRID_SIZE;
+  
+  // Create height map for the irregular surface
+  const heightMap = new Map<string, number>();
+  
+  // Initialize height map with zero heights
+  for (let z = 0; z < container.width; z += GRID_SIZE) {
+    for (let y = 0; y < container.height; y += GRID_SIZE) {
+      const key = `${y.toFixed(3)},${z.toFixed(3)}`;
+      heightMap.set(key, 0);
+    }
+  }
 
-  const remainingLength = container.length - snappedMaxX;
-
-  return {
-    x: snappedMaxX,
-    length: remainingLength,
-    occupied: placements
-  };
-}
-
-
-function fillTailArea(
-  tail: { x: number, length: number, occupied: Placement[] },
-  container: Container,
-  orientations: [number, number, number][]
-): Placement[] {
-  const occupied = [...tail.occupied];
-  const newPlacements: Placement[] = [];
-
-  const step = Math.min(...orientations.flat()) / 4;
-  const sorted = [...orientations].sort((a, b) => b[0] * b[1] * b[2] - a[0] * a[1] * a[2]);
-
-  const EPSILON = 1e-6;
-
-  const isFree = (x: number, y: number, z: number, l: number, h: number, w: number) =>
-    !occupied.some(p =>
-      x < p.position.x + p.rotation[0] - EPSILON &&
-      x + l > p.position.x + EPSILON &&
-      y < p.position.y + p.rotation[1] - EPSILON &&
-      y + h > p.position.y + EPSILON &&
-      z < p.position.z + p.rotation[2] - EPSILON &&
-      z + w > p.position.z + EPSILON
-    );
-
-  for (let y = 0; y + step <= container.height; y += step) {
-    for (let x = 0; x + step <= tail.length; x += step) {
-      for (let z = 0; z + step <= container.width; z += step) {
-        for (const [l, h, w] of sorted) {
-          const absX = x + tail.x;
-          if (
-            absX + l <= container.length + EPSILON &&
-            y + h <= container.height + EPSILON &&
-            z + w <= container.width + EPSILON &&
-            isFree(absX, y, z, l, h, w)
-          ) {
-            const placement: Placement = { position: { x: absX, y, z }, rotation: [l, h, w] };
-            newPlacements.push(placement);
-            occupied.push(placement);
-            break; // move to next position after successful placement
+  // Update height map based on protruding boxes
+  for (const p of placements) {
+    if (p.position.x + p.rotation[0] > startX - EPSILON) {
+      const protrusion = p.position.x + p.rotation[0] - startX;
+      if (protrusion > EPSILON) {
+        for (let z = p.position.z; z < p.position.z + p.rotation[2]; z += GRID_SIZE) {
+          for (let y = p.position.y; y < p.position.y + p.rotation[1]; y += GRID_SIZE) {
+            const key = `${y.toFixed(3)},${z.toFixed(3)}`;
+            heightMap.set(key, Math.max(heightMap.get(key) || 0, protrusion));
           }
         }
       }
     }
   }
 
-  return newPlacements;
+  return {
+    startX,
+    length: container.length - startX,
+    heightMap
+  };
 }
 
+function fillTailArea(
+  tail: TailArea,
+  container: Container,
+  orientations: [number, number, number][]
+): Placement[] {
+  const EPSILON = 1e-6;
+  const GRID_SIZE = 0.1;
+  const placements: Placement[] = [];
+  const occupied = new Set<string>();
 
+  function canPlace(x: number, y: number, z: number, l: number, h: number, w: number): boolean {
+    if (x + l > container.length + EPSILON ||
+        y + h > container.height + EPSILON ||
+        z + w > container.width + EPSILON) return false;
+
+    // Check if space is already occupied
+    for (let dx = 0; dx < l; dx += GRID_SIZE) {
+      for (let dy = 0; dy < h; dy += GRID_SIZE) {
+        for (let dz = 0; dz < w; dz += GRID_SIZE) {
+          const key = `${(x + dx).toFixed(3)},${(y + dy).toFixed(3)},${(z + dz).toFixed(3)}`;
+          if (occupied.has(key)) return false;
+        }
+      }
+    }
+
+    // Check if box fits with the height map
+    if (x < tail.startX + EPSILON) {
+      for (let z = 0; z < w; z += GRID_SIZE) {
+        for (let y = 0; y < h; y += GRID_SIZE) {
+          const key = `${y.toFixed(3)},${z.toFixed(3)}`;
+          const minX = tail.heightMap.get(key) || 0;
+          if (x < tail.startX + minX - EPSILON) return false;
+        }
+      }
+    }
+
+    return true;
+  }
+
+  function markOccupied(x: number, y: number, z: number, l: number, h: number, w: number) {
+    for (let dx = 0; dx < l; dx += GRID_SIZE) {
+      for (let dy = 0; dy < h; dy += GRID_SIZE) {
+        for (let dz = 0; dz < w; dz += GRID_SIZE) {
+          const key = `${(x + dx).toFixed(3)},${(y + dy).toFixed(3)},${(z + dz).toFixed(3)}`;
+          occupied.add(key);
+        }
+      }
+    }
+  }
+
+  // Sort orientations by volume for greedy placement
+  const sorted = [...orientations].sort((a, b) => b[0] * b[1] * b[2] - a[0] * a[1] * b[2]);
+
+  // Try to place boxes starting from the tail area
+  for (let x = tail.startX; x + GRID_SIZE <= container.length; x += GRID_SIZE) {
+    for (let y = 0; y + GRID_SIZE <= container.height; y += GRID_SIZE) {
+      for (let z = 0; z + GRID_SIZE <= container.width; z += GRID_SIZE) {
+        for (const [l, h, w] of sorted) {
+          if (canPlace(x, y, z, l, h, w)) {
+            placements.push({
+              position: { x, y, z },
+              rotation: [l, h, w]
+            });
+            markOccupied(x, y, z, l, h, w);
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  return placements;
+}

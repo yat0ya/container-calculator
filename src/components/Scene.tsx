@@ -15,6 +15,27 @@ export function Scene({ result, container }: SceneProps) {
   const { boxInMeters } = result;
   const baseHue = 210; // Base blue hue
 
+  // Find the furthest X extent
+  let maxX = 0;
+  if (result.placements) {
+    for (const p of result.placements) {
+      const endX = p.position.x + p.rotation[0];
+      if (endX > maxX) maxX = endX;
+    }
+  }
+
+  // Add tail area visualization
+  const tailArea = (
+    <mesh position={[
+      (maxX + (container.length - maxX) / 2) - container.length / 2,
+      0,
+      0
+    ]}>
+      <boxGeometry args={[container.length - maxX, container.height, container.width]} />
+      <meshStandardMaterial color="#ff0000" transparent opacity={0.2} />
+    </mesh>
+  );
+
   if (result.placements) {
     // Use explicit placements (for greedy algorithm)
     result.placements.forEach((placement, index) => {
@@ -89,7 +110,7 @@ export function Scene({ result, container }: SceneProps) {
 
   // Calculate camera distance based on container size
   const maxDimension = Math.max(container.length, container.width, container.height);
-  const cameraDistance = maxDimension*0.8;
+  const cameraDistance = maxDimension * 0.8;
 
   return (
     <>
@@ -97,6 +118,7 @@ export function Scene({ result, container }: SceneProps) {
       <pointLight position={[cameraDistance, cameraDistance, cameraDistance]} intensity={1} />
       <pointLight position={[-cameraDistance, -cameraDistance, -cameraDistance]} intensity={0.5} />
       <Container container={container} />
+      {tailArea}
       {boxes}
       <OrbitControls enableDamping dampingFactor={0.05} />
       <PerspectiveCamera 
