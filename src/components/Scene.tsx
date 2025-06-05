@@ -25,16 +25,16 @@ export function Scene({ result, container }: SceneProps) {
   }
 
   // Add tail area visualization
-  const tailArea = (
-    <mesh position={[
-      (maxX + (container.length - maxX) / 2) - container.length / 2,
-      0,
-      0
-    ]}>
-      <boxGeometry args={[container.length - maxX, container.height, container.width]} />
-      <meshStandardMaterial color="#ff0000" transparent opacity={0.2} />
-    </mesh>
-  );
+  // const tailArea = (
+  //   <mesh position={[
+  //     (maxX + (container.length - maxX) / 2) - container.length / 2,
+  //     0,
+  //     0
+  //   ]}>
+  //     <boxGeometry args={[container.length - maxX, container.height, container.width]} />
+  //     <meshStandardMaterial color="#ff0000" transparent opacity={0.2} />
+  //   </mesh>
+  // );
 
   if (result.placements) {
     // Use explicit placements (for greedy algorithm)
@@ -118,7 +118,7 @@ export function Scene({ result, container }: SceneProps) {
       <pointLight position={[cameraDistance, cameraDistance, cameraDistance]} intensity={1} />
       <pointLight position={[-cameraDistance, -cameraDistance, -cameraDistance]} intensity={0.5} />
       <Container container={container} />
-      {tailArea}
+      {/* {tailArea} */}
       {boxes}
       <OrbitControls enableDamping dampingFactor={0.05} />
       <PerspectiveCamera 

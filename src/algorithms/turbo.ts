@@ -7,10 +7,23 @@ export function turboAlgorithm(box: BoxDimensions, container: Container): Calcul
   const initialWall = buildWall(container, orientations);
   const repeated = repeatPattern(initialWall, container);
 
-  const tailArea = prepareTailArea(repeated, container);
+  // Sort placements by x position to ensure proper tail area preparation
+  const sortedPlacements = [...repeated].sort((a, b) => 
+    (a.position.x + a.rotation[0]) - (b.position.x + b.rotation[0])
+  );
+
+  const tailArea = prepareTailArea(sortedPlacements, container);
   const filledTail = fillTailArea(tailArea, container, orientations);
 
-  return { totalBoxes: repeated.length + filledTail.length, placements: [...repeated, ...filledTail], boxInMeters };
+  // Verify no overlaps in final placement
+  const allPlacements = [...repeated, ...filledTail];
+  const validPlacements = removeOverlappingBoxes(allPlacements);
+
+  return { 
+    totalBoxes: validPlacements.length, 
+    placements: validPlacements, 
+    boxInMeters 
+  };
 }
 
 function generateOrientations({ length, width, height }: BoxDimensions): [number, number, number][] {
@@ -21,7 +34,45 @@ function generateOrientations({ length, width, height }: BoxDimensions): [number
   ];
 }
 
-export function buildWall(container: Container, orientations: [number, number, number][]): Placement[] {
+function boxesOverlap(a: Placement, b: Placement): boolean {
+  return !(
+    a.position.x + a.rotation[0] <= b.position.x + 1e-6 ||
+    b.position.x + b.rotation[0] <= a.position.x + 1e-6 ||
+    a.position.y + a.rotation[1] <= b.position.y + 1e-6 ||
+    b.position.y + b.rotation[1] <= a.position.y + 1e-6 ||
+    a.position.z + a.rotation[2] <= b.position.z + 1e-6 ||
+    b.position.z + b.rotation[2] <= a.position.z + 1e-6
+  );
+}
+
+function removeOverlappingBoxes(placements: Placement[]): Placement[] {
+  const result: Placement[] = [];
+  const EPSILON = 1e-6;
+
+  for (const placement of placements) {
+    let hasOverlap = false;
+    
+    // Check if this placement overlaps with any existing valid placement
+    for (const existing of result) {
+      if (boxesOverlap(placement, existing)) {
+        hasOverlap = true;
+        break;
+      }
+    }
+
+    // Also verify the placement is within container bounds
+    if (!hasOverlap &&
+        placement.position.x >= -EPSILON &&
+        placement.position.y >= -EPSILON &&
+        placement.position.z >= -EPSILON) {
+      result.push(placement);
+    }
+  }
+
+  return result;
+}
+
+function buildWall(container: Container, orientations: [number, number, number][]): Placement[] {
   const allOrientations = Array.from(new Set(
     orientations.flatMap(([l, h, w]) => [
       [l, h, w], [l, w, h], [h, l, w],
@@ -94,8 +145,21 @@ export function buildWall(container: Container, orientations: [number, number, n
 
     let y = 0;
     for (const [l2, h2, w2] of sortedStack) {
-      placements.push({ position: { x: 0, y, z }, rotation: [l2, h2, w2] });
-      y += h2;
+      const newPlacement = { position: { x: 0, y, z }, rotation: [l2, h2, w2] };
+      
+      // Verify no overlap with existing placements
+      let hasOverlap = false;
+      for (const existing of placements) {
+        if (boxesOverlap(newPlacement, existing)) {
+          hasOverlap = true;
+          break;
+        }
+      }
+      
+      if (!hasOverlap) {
+        placements.push(newPlacement);
+        y += h2;
+      }
     }
     z += w;
   }
@@ -131,7 +195,23 @@ function repeatPattern(placements: Placement[], container: Container): Placement
   for (const { position, rotation } of placements) {
     const [l, h, w] = rotation;
     for (let x = position.x; x + l <= container.length + EPSILON; x += l) {
-      repeated.push({ position: { x, y: position.y, z: position.z }, rotation: [l, h, w] });
+      const newPlacement = { 
+        position: { x, y: position.y, z: position.z }, 
+        rotation: [l, h, w] 
+      };
+      
+      // Verify no overlap with existing placements
+      let hasOverlap = false;
+      for (const existing of repeated) {
+        if (boxesOverlap(newPlacement, existing)) {
+          hasOverlap = true;
+          break;
+        }
+      }
+      
+      if (!hasOverlap) {
+        repeated.push(newPlacement);
+      }
     }
   }
 
@@ -142,25 +222,33 @@ interface TailArea {
   startX: number;
   length: number;
   heightMap: Map<string, number>;
+  gaps: Gap[];
+}
+
+interface Gap {
+  x: number;
+  y: number;
+  z: number;
+  width: number;
+  height: number;
+  depth: number;
 }
 
 function prepareTailArea(placements: Placement[], container: Container): TailArea {
   const EPSILON = 1e-6;
-  const GRID_SIZE = 0.1; // 10cm grid for height mapping
+  const GRID_SIZE = 0.1; // Increased grid size for better stability
 
-  // Find the furthest X extent
+  // Find the last complete layer
   let maxX = 0;
   for (const p of placements) {
     const endX = p.position.x + p.rotation[0];
     if (endX > maxX) maxX = endX;
   }
 
-  // Snap to nearest grid point
-  const startX = Math.ceil(maxX / GRID_SIZE) * GRID_SIZE;
-  
-  // Create height map for the irregular surface
+  const startX = Math.floor(maxX / GRID_SIZE) * GRID_SIZE;
   const heightMap = new Map<string, number>();
-  
+  const gaps: Gap[] = [];
+
   // Initialize height map with zero heights
   for (let z = 0; z < container.width; z += GRID_SIZE) {
     for (let y = 0; y < container.height; y += GRID_SIZE) {
@@ -169,92 +257,113 @@ function prepareTailArea(placements: Placement[], container: Container): TailAre
     }
   }
 
-  // Update height map based on protruding boxes
+  // Process each placement to update height map and find gaps
   for (const p of placements) {
-    if (p.position.x + p.rotation[0] > startX - EPSILON) {
-      const protrusion = p.position.x + p.rotation[0] - startX;
-      if (protrusion > EPSILON) {
+    const endX = p.position.x + p.rotation[0];
+    if (endX > startX - EPSILON) {
+      const overhang = endX - startX;
+      
+      if (overhang > EPSILON) {
+        // Update height map for the box's footprint
         for (let z = p.position.z; z < p.position.z + p.rotation[2]; z += GRID_SIZE) {
           for (let y = p.position.y; y < p.position.y + p.rotation[1]; y += GRID_SIZE) {
             const key = `${y.toFixed(3)},${z.toFixed(3)}`;
-            heightMap.set(key, Math.max(heightMap.get(key) || 0, protrusion));
+            heightMap.set(key, Math.max(heightMap.get(key) || 0, overhang));
           }
         }
+
+        // Check for gaps under this box
+        if (p.position.y > EPSILON) {
+          gaps.push({
+            x: startX,
+            y: 0,
+            z: p.position.z,
+            width: p.rotation[2],
+            height: p.position.y,
+            depth: overhang
+          });
+        }
       }
+    }
+  }
+
+  // Fill in implicit gaps in height map
+  for (let z = 0; z < container.width; z += GRID_SIZE) {
+    let maxHeight = 0;
+    for (let y = container.height - GRID_SIZE; y >= 0; y -= GRID_SIZE) {
+      const key = `${y.toFixed(3)},${z.toFixed(3)}`;
+      const height = heightMap.get(key) || 0;
+      maxHeight = Math.max(maxHeight, height);
+      heightMap.set(key, maxHeight);
     }
   }
 
   return {
     startX,
     length: container.length - startX,
-    heightMap
+    heightMap,
+    gaps
   };
 }
 
-function fillTailArea(
-  tail: TailArea,
-  container: Container,
-  orientations: [number, number, number][]
-): Placement[] {
+function fillTailArea(tail: TailArea, container: Container, orientations: [number, number, number][]): Placement[] {
   const EPSILON = 1e-6;
   const GRID_SIZE = 0.1;
   const placements: Placement[] = [];
-  const occupied = new Set<string>();
 
   function canPlace(x: number, y: number, z: number, l: number, h: number, w: number): boolean {
     if (x + l > container.length + EPSILON ||
         y + h > container.height + EPSILON ||
-        z + w > container.width + EPSILON) return false;
+        z + w > container.width + EPSILON ||
+        x < 0 || y < 0 || z < 0) return false;
 
-    // Check if space is already occupied
-    for (let dx = 0; dx < l; dx += GRID_SIZE) {
-      for (let dy = 0; dy < h; dy += GRID_SIZE) {
-        for (let dz = 0; dz < w; dz += GRID_SIZE) {
-          const key = `${(x + dx).toFixed(3)},${(y + dy).toFixed(3)},${(z + dz).toFixed(3)}`;
-          if (occupied.has(key)) return false;
-        }
+    // Check height map constraints
+    for (let zi = z; zi < z + w; zi += GRID_SIZE) {
+      for (let yi = y; yi < y + h; yi += GRID_SIZE) {
+        const key = `${yi.toFixed(3)},${zi.toFixed(3)}`;
+        const requiredSpace = tail.heightMap.get(key) || 0;
+        if (x < tail.startX + requiredSpace - EPSILON) return false;
       }
     }
 
-    // Check if box fits with the height map
-    if (x < tail.startX + EPSILON) {
-      for (let z = 0; z < w; z += GRID_SIZE) {
-        for (let y = 0; y < h; y += GRID_SIZE) {
-          const key = `${y.toFixed(3)},${z.toFixed(3)}`;
-          const minX = tail.heightMap.get(key) || 0;
-          if (x < tail.startX + minX - EPSILON) return false;
-        }
-      }
-    }
-
-    return true;
-  }
-
-  function markOccupied(x: number, y: number, z: number, l: number, h: number, w: number) {
-    for (let dx = 0; dx < l; dx += GRID_SIZE) {
-      for (let dy = 0; dy < h; dy += GRID_SIZE) {
-        for (let dz = 0; dz < w; dz += GRID_SIZE) {
-          const key = `${(x + dx).toFixed(3)},${(y + dy).toFixed(3)},${(z + dz).toFixed(3)}`;
-          occupied.add(key);
-        }
-      }
-    }
+    // Check for overlaps with existing placements
+    const newPlacement = { position: { x, y, z }, rotation: [l, h, w] };
+    return !placements.some(p => boxesOverlap(newPlacement, p));
   }
 
   // Sort orientations by volume for greedy placement
   const sorted = [...orientations].sort((a, b) => b[0] * b[1] * b[2] - a[0] * a[1] * b[2]);
 
-  // Try to place boxes starting from the tail area
+  // First, try to fill gaps
+  for (const gap of tail.gaps) {
+    for (const [l, h, w] of sorted) {
+      if (h <= gap.height && w <= gap.width) {
+        if (canPlace(gap.x, gap.y, gap.z, l, h, w)) {
+          placements.push({
+            position: { x: gap.x, y: gap.y, z: gap.z },
+            rotation: [l, h, w]
+          });
+          break;
+        }
+      }
+    }
+  }
+
+  // Then fill the remaining space
   for (let x = tail.startX; x + GRID_SIZE <= container.length; x += GRID_SIZE) {
-    for (let y = 0; y + GRID_SIZE <= container.height; y += GRID_SIZE) {
-      for (let z = 0; z + GRID_SIZE <= container.width; z += GRID_SIZE) {
+    for (let z = 0; z + GRID_SIZE <= container.width; z += GRID_SIZE) {
+      for (let y = 0; y + GRID_SIZE <= container.height; y += GRID_SIZE) {
+        const key = `${y.toFixed(3)},${z.toFixed(3)}`;
+        const minHeight = tail.heightMap.get(key) || 0;
+        
+        if (x < tail.startX + minHeight - EPSILON) continue;
+        
         for (const [l, h, w] of sorted) {
           if (canPlace(x, y, z, l, h, w)) {
             placements.push({
               position: { x, y, z },
               rotation: [l, h, w]
             });
-            markOccupied(x, y, z, l, h, w);
             break;
           }
         }
