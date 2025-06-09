@@ -1,6 +1,8 @@
 // utils.ts
 
 import { BoxDimensions } from './types';
+import { Placement } from './types';
+import { EPSILON } from './constants';
 
 /**
  * Converts box dimensions from centimeters to meters.
@@ -22,4 +24,23 @@ export function convertToMeters(box: BoxDimensions): BoxDimensions {
 export function generateVariedColor(baseHue: number, index: number): string {
   const hue = (baseHue + index * 37) % 360; // Spread hues evenly
   return `hsl(${hue}, 70%, 60%)`;
+}
+
+export function generateOrientations({ length, width, height }: BoxDimensions): [number, number, number][] {
+  return [
+    [length, width, height], [length, height, width],
+    [width, length, height], [width, height, length],
+    [height, length, width], [height, width, length],
+  ];
+}
+
+export function boxesOverlap(a: Placement, b: Placement): boolean {
+  return !(
+    a.position.x + a.rotation[0] <= b.position.x + EPSILON ||
+    b.position.x + b.rotation[0] <= a.position.x + EPSILON ||
+    a.position.y + a.rotation[1] <= b.position.y + EPSILON ||
+    b.position.y + b.rotation[1] <= a.position.y + EPSILON ||
+    a.position.z + a.rotation[2] <= b.position.z + EPSILON ||
+    b.position.z + b.rotation[2] <= a.position.z + EPSILON
+  );
 }

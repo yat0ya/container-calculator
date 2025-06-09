@@ -1,56 +1,118 @@
 import { BoxDimensions, Container, CalculationResult, Placement } from '../types';
-import { convertToMeters } from '../utils';
+import { convertToMeters, generateOrientations } from '../utils';
+import { EPSILON, MIN_VOLUME, MAX_ITERATIONS } from '../constants';
+import { boxesOverlap } from '../utils';
 
 export function turboAlgorithm(box: BoxDimensions, container: Container): CalculationResult {
   const boxInMeters = convertToMeters(box);
   const orientations = generateOrientations(boxInMeters);
   const initialWall = buildWall(container, orientations);
   const repeated = repeatPattern(initialWall, container);
+  
+  // Sort boxes vertically before further processing
+  const sortedVertically = sortLinesVertically(repeated, container);
 
-  const sortedPlacements = [...repeated].sort((a, b) =>
+  // Apply gravity to ensure boxes are properly stacked
+  applyPull(sortedVertically, 'down');
+  applyPull(sortedVertically, 'left');
+  applyPull(sortedVertically, 'back');
+
+  // Sort placements by x position to ensure proper tail area preparation
+  const sortedPlacements = [...sortedVertically].sort((a, b) => 
     (a.position.x + a.rotation[0]) - (b.position.x + b.rotation[0])
   );
 
-  const tailArea = prepareTailArea(sortedPlacements, container, boxInMeters);
+  const tailArea = prepareTailArea(sortedPlacements, container);
   const filledTail = fillTailArea(tailArea, container, orientations);
 
-  const allPlacements = [...repeated, ...filledTail];
+  // Verify no overlaps in final placement
+  const allPlacements = [...sortedVertically, ...filledTail];
   const validPlacements = removeOverlappingBoxes(allPlacements);
 
-  return {
-    totalBoxes: validPlacements.length,
-    placements: validPlacements,
-    boxInMeters
+  return { 
+    totalBoxes: validPlacements.length, 
+    placements: validPlacements, 
+    boxInMeters 
   };
 }
 
-function generateOrientations({ length, width, height }: BoxDimensions): [number, number, number][] {
-  return [
-    [length, width, height], [length, height, width],
-    [width, length, height], [width, height, length],
-    [height, length, width], [height, width, length],
-  ];
+function sortLinesVertically(placements: Placement[], container: Container): Placement[] {
+  // Group boxes by their z-coordinate first (depth layers)
+  const depthLayers = new Map<number, Placement[]>();
+  
+  placements.forEach(placement => {
+    const z = Math.round(placement.position.z / EPSILON) * EPSILON;
+    if (!depthLayers.has(z)) {
+      depthLayers.set(z, []);
+    }
+    depthLayers.get(z)!.push(placement);
+  });
+
+  const result: Placement[] = [];
+
+  // Process each depth layer separately
+  depthLayers.forEach((layerPlacements, z) => {
+    // Group boxes by their y-coordinate (height level)
+    const lineGroups = new Map<number, Placement[]>();
+    
+    layerPlacements.forEach(placement => {
+      const y = Math.round(placement.position.y / EPSILON) * EPSILON;
+      if (!lineGroups.has(y)) {
+        lineGroups.set(y, []);
+      }
+      lineGroups.get(y)!.push(placement);
+    });
+
+    // Calculate the effective length of each line
+    const lineLengths = new Map<number, number>();
+    lineGroups.forEach((boxes, y) => {
+      const maxX = Math.max(...boxes.map(b => b.position.x + b.rotation[0]));
+      const minX = Math.min(...boxes.map(b => b.position.x));
+      lineLengths.set(y, maxX - minX);
+    });
+
+    // Sort lines by length (descending)
+    const sortedYLevels = Array.from(lineGroups.keys()).sort((a, b) => 
+      lineLengths.get(b)! - lineLengths.get(a)!
+    );
+
+    // Redistribute boxes vertically while maintaining relative horizontal positions
+    let currentY = 0;
+    
+    sortedYLevels.forEach(originalY => {
+      const line = lineGroups.get(originalY)!;
+      
+      // Sort boxes within the line by x position
+      const sortedLine = [...line].sort((a, b) => a.position.x - b.position.x);
+      
+      sortedLine.forEach(box => {
+        result.push({
+          position: {
+            x: box.position.x,
+            y: currentY,
+            z: box.position.z
+          },
+          rotation: box.rotation
+        });
+      });
+      
+      // Move to next vertical position based on maximum box height in this line
+      const lineHeight = Math.max(...line.map(b => b.rotation[1]));
+      currentY += lineHeight;
+    });
+  });
+
+  return result;
 }
 
-function boxesOverlap(a: Placement, b: Placement): boolean {
-  const epsilon = 1e-6;
-  return !(
-    a.position.x + a.rotation[0] <= b.position.x + epsilon ||
-    b.position.x + b.rotation[0] <= a.position.x + epsilon ||
-    a.position.y + a.rotation[1] <= b.position.y + epsilon ||
-    b.position.y + b.rotation[1] <= a.position.y + epsilon ||
-    a.position.z + a.rotation[2] <= b.position.z + epsilon ||
-    b.position.z + b.rotation[2] <= a.position.z + epsilon
-  );
-}
 
 function removeOverlappingBoxes(placements: Placement[]): Placement[] {
   const result: Placement[] = [];
-  const epsilon = 1e-6;
 
   for (const placement of placements) {
     let hasOverlap = false;
-
+    
+    // Check if this placement overlaps with any existing valid placement
     for (const existing of result) {
       if (boxesOverlap(placement, existing)) {
         hasOverlap = true;
@@ -58,10 +120,11 @@ function removeOverlappingBoxes(placements: Placement[]): Placement[] {
       }
     }
 
+    // Also verify the placement is within container bounds
     if (!hasOverlap &&
-        placement.position.x >= -epsilon &&
-        placement.position.y >= -epsilon &&
-        placement.position.z >= -epsilon) {
+        placement.position.x >= -EPSILON &&
+        placement.position.y >= -EPSILON &&
+        placement.position.z >= -EPSILON) {
       result.push(placement);
     }
   }
@@ -142,15 +205,26 @@ function buildWall(container: Container, orientations: [number, number, number][
 
     let y = 0;
     for (const [l2, h2, w2] of sortedStack) {
-      placements.push({ position: { x: 0, y, z }, rotation: [l2, h2, w2] });
-      y += h2;
+      const newPlacement = { position: { x: 0, y, z }, rotation: [l2, h2, w2] };
+      
+      let hasOverlap = false;
+      for (const existing of placements) {
+        if (boxesOverlap(newPlacement, existing)) {
+          hasOverlap = true;
+          break;
+        }
+      }
+      
+      if (!hasOverlap) {
+        placements.push(newPlacement);
+        y += h2;
+      }
     }
     z += w;
   }
 
   return placements;
 }
-
 
 function stackColumn(orientations: [number, number, number][], height: number, width: number): [number, number, number][] {
   const fits = orientations.filter(([, h, w]) => w === width && h <= height);
@@ -175,38 +249,49 @@ function stackColumn(orientations: [number, number, number][], height: number, w
 
 function repeatPattern(placements: Placement[], container: Container): Placement[] {
   const repeated: Placement[] = [];
-  const EPSILON = 1e-6;
 
   for (const { position, rotation } of placements) {
     const [l, h, w] = rotation;
     for (let x = position.x; x + l <= container.length + EPSILON; x += l) {
-      repeated.push({
-        position: { x, y: position.y, z: position.z },
-        rotation: [l, h, w]
-      });
+      const newPlacement = { 
+        position: { x, y: position.y, z: position.z }, 
+        rotation: [l, h, w] 
+      };
+      
+      let hasOverlap = false;
+      for (const existing of repeated) {
+        if (boxesOverlap(newPlacement, existing)) {
+          hasOverlap = true;
+          break;
+        }
+      }
+      
+      if (!hasOverlap) {
+        repeated.push(newPlacement);
+      }
     }
   }
 
   return repeated;
 }
 
-
 interface TailArea {
   startX: number;
   length: number;
   heightMap: Map<string, number>;
-  gaps: {
-    x: number;
-    y: number;
-    z: number;
-    width: number;
-    height: number;
-    depth: number;
-  }[];
+  gaps: Gap[];
 }
 
-function prepareTailArea(placements: Placement[], container: Container, box: BoxDimensions): TailArea {
-  const EPSILON = 1e-6;
+interface Gap {
+  x: number;
+  y: number;
+  z: number;
+  width: number;
+  height: number;
+  depth: number;
+}
+
+function prepareTailArea(placements: Placement[], container: Container): TailArea {
   const GRID_SIZE = 0.1;
 
   let maxX = 0;
@@ -217,7 +302,7 @@ function prepareTailArea(placements: Placement[], container: Container, box: Box
 
   const startX = Math.floor(maxX / GRID_SIZE) * GRID_SIZE;
   const heightMap = new Map<string, number>();
-  const gaps: TailArea["gaps"] = [];
+  const gaps: Gap[] = [];
 
   for (let z = 0; z < container.width; z += GRID_SIZE) {
     for (let y = 0; y < container.height; y += GRID_SIZE) {
@@ -230,7 +315,7 @@ function prepareTailArea(placements: Placement[], container: Container, box: Box
     const endX = p.position.x + p.rotation[0];
     if (endX > startX - EPSILON) {
       const overhang = endX - startX;
-
+      
       if (overhang > EPSILON) {
         for (let z = p.position.z; z < p.position.z + p.rotation[2]; z += GRID_SIZE) {
           for (let y = p.position.y; y < p.position.y + p.rotation[1]; y += GRID_SIZE) {
@@ -272,7 +357,6 @@ function prepareTailArea(placements: Placement[], container: Container, box: Box
 }
 
 function fillTailArea(tail: TailArea, container: Container, orientations: [number, number, number][]): Placement[] {
-  const EPSILON = 1e-6;
   const GRID_SIZE = 0.1;
   const placements: Placement[] = [];
 
@@ -285,8 +369,8 @@ function fillTailArea(tail: TailArea, container: Container, orientations: [numbe
     for (let zi = z; zi < z + w; zi += GRID_SIZE) {
       for (let yi = y; yi < y + h; yi += GRID_SIZE) {
         const key = `${yi.toFixed(3)},${zi.toFixed(3)}`;
-        const required = tail.heightMap.get(key) || 0;
-        if (x < tail.startX + required - EPSILON) return false;
+        const requiredSpace = tail.heightMap.get(key) || 0;
+        if (x < tail.startX + requiredSpace - EPSILON) return false;
       }
     }
 
@@ -294,7 +378,7 @@ function fillTailArea(tail: TailArea, container: Container, orientations: [numbe
     return !placements.some(p => boxesOverlap(newPlacement, p));
   }
 
-  const sorted = [...orientations].sort((a, b) => b[0] * b[1] * b[2] - a[0] * a[1] * a[2]);
+  const sorted = [...orientations].sort((a, b) => b[0] * b[1] * b[2] - a[0] * a[1] * b[2]);
 
   for (const gap of tail.gaps) {
     for (const [l, h, w] of sorted) {
@@ -315,8 +399,9 @@ function fillTailArea(tail: TailArea, container: Container, orientations: [numbe
       for (let y = 0; y + GRID_SIZE <= container.height; y += GRID_SIZE) {
         const key = `${y.toFixed(3)},${z.toFixed(3)}`;
         const minHeight = tail.heightMap.get(key) || 0;
+        
         if (x < tail.startX + minHeight - EPSILON) continue;
-
+        
         for (const [l, h, w] of sorted) {
           if (canPlace(x, y, z, l, h, w)) {
             placements.push({
@@ -331,4 +416,63 @@ function fillTailArea(tail: TailArea, container: Container, orientations: [numbe
   }
 
   return placements;
+}
+
+type Axis = 'x' | 'y' | 'z';
+type PullDirection = 'down' | 'up' | 'left' | 'right' | 'back' | 'forward';
+
+const directionMap: Record<PullDirection, { axis: Axis; sign: -1 | 1 }> = {
+  down: { axis: 'y', sign: -1 },
+  up: { axis: 'y', sign: 1 },
+  left: { axis: 'x', sign: -1 },
+  right: { axis: 'x', sign: 1 },
+  back: { axis: 'z', sign: -1 },
+  forward: { axis: 'z', sign: 1 },
+};
+
+function applyPull(placements: Placement[], direction: PullDirection): void {
+  const { axis, sign } = directionMap[direction];
+  const axisIdx = axis === 'x' ? 0 : axis === 'y' ? 1 : 2;
+  const orthogonalAxes = ['x', 'y', 'z'].filter(a => a !== axis) as Axis[];
+  const orthoIdx = orthogonalAxes.map(a => (a === 'x' ? 0 : a === 'y' ? 1 : 2));
+
+  let moved: boolean;
+  let iterations = 0;
+
+  do {
+    moved = false;
+    iterations++;
+
+    for (const box of placements) {
+      const currentPos = box.position[axis];
+      let targetPos = sign === -1 ? 0 : Number.POSITIVE_INFINITY;
+
+      for (const other of placements) {
+        if (other === box) continue;
+
+        const overlaps = orthoIdx.every(i => {
+          const ortho = ['x', 'y', 'z'][i] as Axis;
+          return !(box.position[ortho] + box.rotation[i] <= other.position[ortho] ||
+            other.position[ortho] + other.rotation[i] <= box.position[ortho]);
+        });
+
+        if (!overlaps) continue;
+
+        const otherEdge = sign === -1
+          ? other.position[axis] + other.rotation[axisIdx]
+          : other.position[axis];
+
+        if (sign === -1 && otherEdge <= currentPos + EPSILON && otherEdge > targetPos) {
+          targetPos = otherEdge;
+        } else if (sign === 1 && otherEdge >= currentPos - EPSILON && otherEdge < targetPos) {
+          targetPos = otherEdge;
+        }
+      }
+
+      if (Math.abs(currentPos - targetPos) > EPSILON) {
+        box.position[axis] = targetPos;
+        moved = true;
+      }
+    }
+  } while (moved && iterations < MAX_ITERATIONS);
 }

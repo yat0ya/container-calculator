@@ -38,3 +38,7 @@ export const ALGORITHMS = [
     description: 'Simple algorithm that calculates box fit without rotations',
   }
 ];
+
+export const EPSILON = 1e-3;
+export const MIN_VOLUME = 1e-3;
+export const MAX_ITERATIONS = 10;
