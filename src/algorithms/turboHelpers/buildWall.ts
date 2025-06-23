@@ -1,14 +1,17 @@
 import { Container, Placement } from '../../types';
-import { EPSILON } from '../../constants';
 import { boxesOverlap } from '../../utils';
 
 export function buildWall(container: Container, orientations: [number, number, number][]): Placement[] {
-  const allOrientations = Array.from(new Set(
-    orientations.flatMap(([l, h, w]) => [
-      [l, h, w], [l, w, h], [h, l, w],
-      [h, w, l], [w, l, h], [w, h, l],
-    ].map(JSON.stringify))
-  )).map(s => JSON.parse(s));
+  const allOrientations: [number, number, number][] = Array.from(
+    new Set(
+      orientations.flatMap(([l, h, w]) =>
+        [
+          [l, h, w], [l, w, h], [h, l, w],
+          [h, w, l], [w, l, h], [w, h, l],
+        ].map(o => JSON.stringify(o))
+      )
+    )
+  ).map(s => JSON.parse(s) as [number, number, number]);
 
   const TIME_LIMIT = 1000;
   const MAX_DEPTH = 30;
@@ -58,7 +61,8 @@ export function buildWall(container: Container, orientations: [number, number, n
   const placements: Placement[] = [];
   let z = 0;
 
-  for (const [l, h, w] of sortedLayout) {
+  for (const box of sortedLayout) {
+    const w = box[2];
     const stack = stackColumn(allOrientations, container.height, w);
     const localCounts = new Map<string, number>();
 
@@ -75,7 +79,10 @@ export function buildWall(container: Container, orientations: [number, number, n
 
     let y = 0;
     for (const [l2, h2, w2] of sortedStack) {
-      const newPlacement = { position: { x: 0, y, z }, rotation: [l2, h2, w2] };
+      const newPlacement: Placement = {
+        position: { x: 0, y, z },
+        rotation: [l2, h2, w2] as [number, number, number]
+      };
 
       let hasOverlap = false;
       for (const existing of placements) {

@@ -1,13 +1,11 @@
-import { BoxDimensions, Container, CalculationResult, Placement } from '../types';
+import { BoxDimensions, Container, CalculationResult } from '../types';
 import { convertToMeters, generateOrientations } from '../utils';
-import { EPSILON, MIN_VOLUME, MAX_ITERATIONS } from '../constants';
-import { boxesOverlap } from '../utils';
 
 import { sortLinesVertically } from './turboHelpers/sortLinesVertically';
 import { removeOverlappingBoxes } from './turboHelpers/removeOverlappingBoxes';
 import { buildWall } from './turboHelpers/buildWall';
 import { repeatPattern } from './turboHelpers/repeatPattern';
-import { prepareTailArea, TailArea } from './turboHelpers/prepareTailArea';
+import { prepareTailArea } from './turboHelpers/prepareTailArea';
 import { fillTailArea } from './turboHelpers/fillTailArea';
 import { applyPull } from './turboHelpers/applyPull';
 
@@ -25,7 +23,7 @@ export function turboAlgorithm(box: BoxDimensions, container: Container): Calcul
   const repeated = repeatPattern(initialWall, container);
 
   // ─── Stage 4: Vertical Sorting for Layering ──────────────
-  const sortedVertically = sortLinesVertically(repeated, container);
+  const sortedVertically = sortLinesVertically(repeated);
 
   // ─── Stage 5: Apply Gravity Pull ─────────────────────────
   applyPull(sortedVertically, 'down');

@@ -25,7 +25,11 @@ export function fillTailArea(
       }
     }
 
-    const newPlacement = { position: { x, y, z }, rotation: [l, h, w] };
+    const newPlacement: Placement = {
+      position: { x, y, z },
+      rotation: [l, h, w] as [number, number, number]
+    };
+
     return !placements.some(p => boxesOverlap(newPlacement, p));
   }
 
@@ -37,7 +41,7 @@ export function fillTailArea(
         if (canPlace(gap.x, gap.y, gap.z, l, h, w)) {
           placements.push({
             position: { x: gap.x, y: gap.y, z: gap.z },
-            rotation: [l, h, w]
+            rotation: [l, h, w] as [number, number, number]
           });
           break;
         }
@@ -57,7 +61,7 @@ export function fillTailArea(
           if (canPlace(x, y, z, l, h, w)) {
             placements.push({
               position: { x, y, z },
-              rotation: [l, h, w]
+              rotation: [l, h, w] as [number, number, number]
             });
             break;
           }

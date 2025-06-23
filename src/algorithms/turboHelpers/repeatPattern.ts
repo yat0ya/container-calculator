@@ -9,9 +9,9 @@ export function repeatPattern(placements: Placement[], container: Container): Pl
     const [l, h, w] = rotation;
 
     for (let x = position.x; x + l <= container.length + EPSILON; x += l) {
-      const newPlacement = {
+      const newPlacement: Placement = {
         position: { x, y: position.y, z: position.z },
-        rotation: [l, h, w]
+        rotation: [l, h, w] as [number, number, number]
       };
 
       let hasOverlap = false;

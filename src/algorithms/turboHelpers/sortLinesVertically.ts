@@ -1,7 +1,7 @@
-import { Placement, Container } from '../../types';
+import { Placement } from '../../types';
 import { EPSILON } from '../../constants';
 
-export function sortLinesVertically(placements: Placement[], container: Container): Placement[] {
+export function sortLinesVertically(placements: Placement[]): Placement[] {
   const depthLayers = new Map<number, Placement[]>();
   
   placements.forEach(placement => {
@@ -14,7 +14,7 @@ export function sortLinesVertically(placements: Placement[], container: Containe
 
   const result: Placement[] = [];
 
-  depthLayers.forEach((layerPlacements, z) => {
+  depthLayers.forEach(layerPlacements => {
     const lineGroups = new Map<number, Placement[]>();
     
     layerPlacements.forEach(placement => {
