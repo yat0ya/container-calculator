@@ -1,68 +1,104 @@
 import { Placement, Container } from '../../types';
 import { EPSILON } from '../../constants';
 import { boxesOverlap } from '../../utils';
-import { TailArea } from './prepareTailArea';
+
+interface Gap {
+  x: number;
+  y: number;
+  z: number;
+  width: number;
+  height: number;
+  depth: number;
+}
+
+interface TailArea {
+  startX: number;
+  length: number;
+  heightMap: Map<string, number>;
+  gaps: Gap[];
+}
 
 export function fillTailArea(
   tail: TailArea,
   container: Container,
   orientations: [number, number, number][]
 ): Placement[] {
-  const GRID_SIZE = 0.1;
+  // Safe and adaptive grid sizing
+  const MIN_GRID = 0.02; // 2 cm
+  const MAX_GRID = 0.1;  // 10 cm
+  const minBoxEdge = Math.min(...orientations.flat().filter(x => x > 0));
+  const GRID_SIZE = Math.min(MAX_GRID, Math.max(MIN_GRID, minBoxEdge));
+
   const placements: Placement[] = [];
+  const occupied: Placement[] = [];
+
+  const sortedOrients = [...orientations].sort(
+    (a, b) => (b[0] * b[1] * b[2]) - (a[0] * a[1] * a[2])
+  );
+
+  const snap = (v: number) => Math.round(v / GRID_SIZE) * GRID_SIZE;
 
   function canPlace(x: number, y: number, z: number, l: number, h: number, w: number): boolean {
-    if (x + l > container.length + EPSILON ||
-        y + h > container.height + EPSILON ||
-        z + w > container.width + EPSILON ||
-        x < 0 || y < 0 || z < 0) return false;
+    if (
+      x + l > container.length + EPSILON ||
+      y + h > container.height + EPSILON ||
+      z + w > container.width + EPSILON
+    ) return false;
 
-    for (let zi = z; zi < z + w; zi += GRID_SIZE) {
-      for (let yi = y; yi < y + h; yi += GRID_SIZE) {
+    if (x < tail.startX - EPSILON) return false;
+
+    for (let zi = z; zi < z + w - EPSILON; zi += GRID_SIZE) {
+      for (let yi = y; yi < y + h - EPSILON; yi += GRID_SIZE) {
         const key = `${yi.toFixed(3)},${zi.toFixed(3)}`;
-        const requiredSpace = tail.heightMap.get(key) || 0;
-        if (x < tail.startX + requiredSpace - EPSILON) return false;
+        const clearance = tail.heightMap.get(key) || 0;
+        if (x < tail.startX + clearance - EPSILON) return false;
       }
     }
 
     const newPlacement: Placement = {
-      position: { x, y, z },
-      rotation: [l, h, w] as [number, number, number]
+      position: { x: snap(x), y: snap(y), z: snap(z) },
+      rotation: [l, h, w]
     };
 
-    return !placements.some(p => boxesOverlap(newPlacement, p));
+    return !occupied.some(p => boxesOverlap(newPlacement, p));
   }
 
-  const sorted = [...orientations].sort((a, b) => b[0] * b[1] * b[2] - a[0] * a[1] * b[2]);
-
+  // Step 1: Fill known gaps first
   for (const gap of tail.gaps) {
-    for (const [l, h, w] of sorted) {
-      if (h <= gap.height && w <= gap.width) {
-        if (canPlace(gap.x, gap.y, gap.z, l, h, w)) {
-          placements.push({
-            position: { x: gap.x, y: gap.y, z: gap.z },
-            rotation: [l, h, w] as [number, number, number]
-          });
+    for (const [l, h, w] of sortedOrients) {
+      if (l <= gap.depth + EPSILON && h <= gap.height + EPSILON && w <= gap.width + EPSILON) {
+        const pos = {
+          x: snap(gap.x),
+          y: snap(gap.y),
+          z: snap(gap.z)
+        };
+        if (canPlace(pos.x, pos.y, pos.z, l, h, w)) {
+          const placement = { position: pos, rotation: [l, h, w] };
+          placements.push(placement);
+          occupied.push(placement);
           break;
         }
       }
     }
   }
 
-  for (let x = tail.startX; x + GRID_SIZE <= container.length; x += GRID_SIZE) {
-    for (let z = 0; z + GRID_SIZE <= container.width; z += GRID_SIZE) {
-      for (let y = 0; y + GRID_SIZE <= container.height; y += GRID_SIZE) {
-        const key = `${y.toFixed(3)},${z.toFixed(3)}`;
-        const minHeight = tail.heightMap.get(key) || 0;
+  // Step 2: Fill tail area from back to wall, enforcing grid and collision
+  const candidateYs = new Set<number>([0]);
 
-        if (x < tail.startX + minHeight - EPSILON) continue;
+  for (let x = container.length - GRID_SIZE; x >= tail.startX; x -= GRID_SIZE) {
+    for (let z = 0; z < container.width + EPSILON; z += GRID_SIZE) {
+      for (const y of Array.from(candidateYs).sort((a, b) => a - b)) {
+        const snapped = { x: snap(x), y: snap(y), z: snap(z) };
 
-        for (const [l, h, w] of sorted) {
-          if (canPlace(x, y, z, l, h, w)) {
-            placements.push({
-              position: { x, y, z },
-              rotation: [l, h, w] as [number, number, number]
-            });
+        for (const [l, h, w] of sortedOrients) {
+          if (canPlace(snapped.x, snapped.y, snapped.z, l, h, w)) {
+            const placement = {
+              position: { ...snapped },
+              rotation: [l, h, w]
+            };
+            placements.push(placement);
+            occupied.push(placement);
+            candidateYs.add(snap(y + h));
             break;
           }
         }
