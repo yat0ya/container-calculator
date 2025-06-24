@@ -10,6 +10,7 @@ import { fillTailArea } from './turboHelpers/fillTailArea';
 import { snapBoxesTightly } from './turboHelpers/snapBoxesTightly';
 import { alignBoxesAnalytically } from './turboHelpers/alignBoxesAnalitically';
 import { patchSmallGaps } from './turboHelpers/patchSmallGaps';
+import { finalInsertionSweep } from './turboHelpers/finalInsertionSweep';
 
 export function turboAlgorithm(box: BoxDimensions, container: Container): CalculationResult {
   // ─── Stage 1: Preprocessing ──────────────────────────────
@@ -41,8 +42,15 @@ export function turboAlgorithm(box: BoxDimensions, container: Container): Calcul
   const patched = patchSmallGaps(allPlacements, container, orientations);
   allPlacements.push(...patched);
 
-  // ─── Stage 8: Final Validation ───────────────────────────
-  // const validPlacements = allPlacements;
+  // ─── Stage 8: Final Insertion Sweep ──────────────────────
+  const finalInserted = finalInsertionSweep(allPlacements, container, orientations);
+  allPlacements.push(...finalInserted);
+
+  // ─── Stage 9: Final Compaction ───────────────────────────
+  snapBoxesTightly(allPlacements);
+  alignBoxesAnalytically(allPlacements);
+
+  // ─── Stage 10: Final Validation ──────────────────────────
   const validPlacements = removeOverlappingBoxes(allPlacements);
 
   return {
