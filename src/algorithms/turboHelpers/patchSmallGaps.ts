@@ -3,8 +3,8 @@ import { boxesOverlap } from '../../utils';
 import { EPSILON } from '../../constants';
 
 /**
- * Attempts to place additional boxes in unused space from bottom up.
- * Only places on floor or on top of other boxes.
+ * Greedily fills leftover tail space from bottom up using all orientations.
+ * Only places on top of solid surfaces (floor or box).
  */
 export function patchSmallGaps(
   existing: Placement[],
@@ -17,9 +17,19 @@ export function patchSmallGaps(
 
   const snap = (v: number) => Math.round(v / GRID) * GRID;
 
-  for (let x = 0; x + EPSILON < container.length; x += GRID) {
+  // Determine tailStartX from current placements
+  let tailStartX = 0;
+  for (const p of existing) {
+    const endX = p.position.x + p.rotation[0];
+    if (endX > tailStartX + EPSILON) {
+      tailStartX = endX;
+    }
+  }
+  tailStartX = snap(tailStartX);
+
+  // Limit patching only to tail region
+  for (let x = tailStartX; x + EPSILON < container.length; x += GRID) {
     for (let z = 0; z + EPSILON < container.width; z += GRID) {
-      // For each x,z column, get all supported Y levels (top surfaces)
       const supportHeights = getSupportHeightsAt(x, z, all);
 
       for (const y of supportHeights) {
@@ -30,7 +40,6 @@ export function patchSmallGaps(
             z: snap(z)
           };
 
-          // Ensure box fits within container
           if (
             pos.x + l > container.length + EPSILON ||
             pos.y + h > container.height + EPSILON ||
@@ -57,7 +66,7 @@ export function patchSmallGaps(
 
 function getSupportHeightsAt(x: number, z: number, placements: Placement[]): number[] {
   const heights = new Set<number>();
-  heights.add(0); // floor
+  heights.add(0); // always try the floor
 
   for (const p of placements) {
     const px = p.position.x;
