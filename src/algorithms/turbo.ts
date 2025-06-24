@@ -7,9 +7,9 @@ import { buildWall } from './turboHelpers/buildWall';
 import { repeatPattern } from './turboHelpers/repeatPattern';
 import { prepareTailArea } from './turboHelpers/prepareTailArea';
 import { fillTailArea } from './turboHelpers/fillTailArea';
-import { applyPull } from './turboHelpers/applyPull';
-
-
+import { snapBoxesTightly } from './turboHelpers/snapBoxesTightly';
+import { alignBoxesAnalytically } from './turboHelpers/alignBoxesAnalitically';
+import { patchSmallGaps } from './turboHelpers/patchSmallGaps';
 
 export function turboAlgorithm(box: BoxDimensions, container: Container): CalculationResult {
   // ─── Stage 1: Preprocessing ──────────────────────────────
@@ -25,20 +25,24 @@ export function turboAlgorithm(box: BoxDimensions, container: Container): Calcul
   // ─── Stage 4: Vertical Sorting for Layering ──────────────
   const sortedVertically = sortLinesVertically(repeated);
 
-  // ─── Stage 5: Apply Gravity Pull ─────────────────────────
-  applyPull(sortedVertically, 'down');
-  applyPull(sortedVertically, 'left');
-  applyPull(sortedVertically, 'back');
-
-  // ─── Stage 6: Prepare & Fill Tail Area ───────────────────
-  const sortedPlacements = [...sortedVertically].sort((a, b) => 
+  // ─── Stage 5: Fill Tail Area ─────────────────────────────
+  const sortedPlacements = [...sortedVertically].sort((a, b) =>
     (a.position.x + a.rotation[0]) - (b.position.x + b.rotation[0])
   );
   const tailArea = prepareTailArea(sortedPlacements, container);
   const filledTail = fillTailArea(tailArea, container, orientations);
 
-  // ─── Stage 7: Final Validation ───────────────────────────
+  // ─── Stage 6: Post-placement Compaction ──────────────────
   const allPlacements = [...sortedVertically, ...filledTail];
+  snapBoxesTightly(allPlacements);
+  alignBoxesAnalytically(allPlacements);
+
+  // ─── Stage 7: Patch Small Gaps ───────────────────────────
+  const patched = patchSmallGaps(allPlacements, container, orientations);
+  allPlacements.push(...patched);
+
+  // ─── Stage 8: Final Validation ───────────────────────────
+  // const validPlacements = allPlacements;
   const validPlacements = removeOverlappingBoxes(allPlacements);
 
   return {
