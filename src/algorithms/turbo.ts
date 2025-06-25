@@ -11,20 +11,28 @@ import { snapBoxesTightly } from './turboHelpers/snapBoxesTightly';
 import { alignBoxesAnalytically } from './turboHelpers/alignBoxesAnalitically';
 import { patchSmallGaps } from './turboHelpers/patchSmallGaps';
 import { finalInsertionSweep } from './turboHelpers/finalInsertionSweep';
+import { addAnalyticalLayers } from './turboHelpers/analyticalLayering';
 
 export function turboAlgorithm(box: BoxDimensions, container: Container): CalculationResult {
+  console.log('🚀 Starting Turbo Algorithm');
+  
   // ─── Stage 1: Preprocessing ──────────────────────────────
   const boxInMeters = convertToMeters(box);
   const orientations = generateOrientations(boxInMeters);
+  console.log('📦 Box dimensions (m):', boxInMeters);
+  console.log('🔄 Available orientations:', orientations.length);
 
   // ─── Stage 2: Build Initial Wall ─────────────────────────
   const initialWall = buildWall(container, orientations);
+  console.log('🧱 Initial wall:', initialWall.length, 'boxes');
 
   // ─── Stage 3: Repeat Wall Along Container ────────────────
   const repeated = repeatPattern(initialWall, container);
+  console.log('🔁 After repeat pattern:', repeated.length, 'boxes');
 
   // ─── Stage 4: Vertical Sorting for Layering ──────────────
   const sortedVertically = sortLinesVertically(repeated);
+  console.log('📊 After vertical sorting:', sortedVertically.length, 'boxes');
 
   // ─── Stage 5: Fill Tail Area ─────────────────────────────
   const sortedPlacements = [...sortedVertically].sort((a, b) =>
@@ -32,26 +40,38 @@ export function turboAlgorithm(box: BoxDimensions, container: Container): Calcul
   );
   const tailArea = prepareTailArea(sortedPlacements, container);
   const filledTail = fillTailArea(tailArea, container, orientations);
+  console.log('🎯 After tail fill:', filledTail.length, 'boxes');
 
   // ─── Stage 6: Post-placement Compaction ──────────────────
   const allPlacements = [...sortedVertically, ...filledTail];
+  console.log('📦 Before compaction:', allPlacements.length, 'boxes');
+  
   snapBoxesTightly(allPlacements);
   alignBoxesAnalytically(allPlacements);
+  console.log('🔧 After compaction:', allPlacements.length, 'boxes');
 
-  // ─── Stage 7: Patch Small Gaps ───────────────────────────
+  // ─── Stage 7: Analytical Layering ────────────────────────
+  const analyticalLayers = addAnalyticalLayers(allPlacements, container);
+  allPlacements.push(...analyticalLayers);
+  console.log('🎯 After analytical layering:', allPlacements.length, 'boxes (added', analyticalLayers.length, ')');
+
+  // ─── Stage 8: Patch Small Gaps ───────────────────────────
   const patched = patchSmallGaps(allPlacements, container, orientations);
   allPlacements.push(...patched);
+  console.log('🩹 After patching:', allPlacements.length, 'boxes (added', patched.length, ')');
 
-  // ─── Stage 8: Final Insertion Sweep ──────────────────────
+  // ─── Stage 9: Final Insertion Sweep ──────────────────────
   const finalInserted = finalInsertionSweep(allPlacements, container, orientations);
   allPlacements.push(...finalInserted);
+  console.log('🧹 After final sweep:', allPlacements.length, 'boxes (added', finalInserted.length, ')');
 
-  // ─── Stage 9: Final Compaction ───────────────────────────
+  // ─── Stage 10: Final Compaction ──────────────────────────
   snapBoxesTightly(allPlacements);
   alignBoxesAnalytically(allPlacements);
 
-  // ─── Stage 10: Final Validation ──────────────────────────
+  // ─── Stage 11: Final Validation ──────────────────────────
   const validPlacements = removeOverlappingBoxes(allPlacements);
+  console.log('✅ Final result:', validPlacements.length, 'boxes (removed', allPlacements.length - validPlacements.length, 'overlapping)');
 
   return {
     totalBoxes: validPlacements.length,

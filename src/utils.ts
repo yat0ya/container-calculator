@@ -36,11 +36,11 @@ export function generateOrientations({ length, width, height }: BoxDimensions): 
 
 export function boxesOverlap(a: Placement, b: Placement): boolean {
   return !(
-    a.position.x + a.rotation[0] <= b.position.x + EPSILON ||
-    b.position.x + b.rotation[0] <= a.position.x + EPSILON ||
-    a.position.y + a.rotation[1] <= b.position.y + EPSILON ||
-    b.position.y + b.rotation[1] <= a.position.y + EPSILON ||
-    a.position.z + a.rotation[2] <= b.position.z + EPSILON ||
-    b.position.z + b.rotation[2] <= a.position.z + EPSILON
+    a.position.x + a.rotation[0] <= b.position.x ||
+    b.position.x + b.rotation[0] <= a.position.x ||
+    a.position.y + a.rotation[1] <= b.position.y ||
+    b.position.y + b.rotation[1] <= a.position.y ||
+    a.position.z + a.rotation[2] <= b.position.z ||
+    b.position.z + b.rotation[2] <= a.position.z
   );
 }
