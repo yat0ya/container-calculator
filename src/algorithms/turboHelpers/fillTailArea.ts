@@ -18,21 +18,43 @@ interface TailArea {
   gaps: Gap[];
 }
 
+function getAllRotations([a, b, c]: [number, number, number]): [number, number, number][] {
+  const perms: [number, number, number][] = [
+    [a, b, c],
+    [a, c, b],
+    [b, a, c],
+    [b, c, a],
+    [c, a, b],
+    [c, b, a]
+  ];
+  const unique = new Set<string>();
+  return perms.filter(p => {
+    const key = p.join(',');
+    if (unique.has(key)) return false;
+    unique.add(key);
+    return true;
+  });
+}
+
 export function fillTailArea(
   tail: TailArea,
   container: Container,
   orientations: [number, number, number][]
 ): Placement[] {
   // Safe and adaptive grid sizing
-  const MIN_GRID = 0.02; // 2 cm
-  const MAX_GRID = 0.1;  // 10 cm
+  const MIN_GRID = 0.02;
+  const MAX_GRID = 0.1;
   const minBoxEdge = Math.min(...orientations.flat().filter(x => x > 0));
   const GRID_SIZE = Math.min(MAX_GRID, Math.max(MIN_GRID, minBoxEdge));
 
   const placements: Placement[] = [];
   const occupied: Placement[] = [];
 
-  const sortedOrients = [...orientations].sort(
+  const allRotations = Array.from(
+    new Set(orientations.flatMap(getAllRotations).map(r => r.join(',')))
+  ).map(r => r.split(',').map(Number) as [number, number, number]);
+
+  const sortedOrients = [...allRotations].sort(
     (a, b) => (b[0] * b[1] * b[2]) - (a[0] * a[1] * a[2])
   );
 
@@ -82,7 +104,7 @@ export function fillTailArea(
     }
   }
 
-  // Step 2: Fill tail area from back to wall, enforcing grid and collision
+  // Step 2: Fill tail area from back to wall
   const candidateYs = new Set<number>([0]);
 
   for (let x = container.length - GRID_SIZE; x >= tail.startX; x -= GRID_SIZE) {
