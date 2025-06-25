@@ -9,7 +9,6 @@ import { boxesOverlap } from '../../utils';
 export function addAnalyticalLayers(
   placements: Placement[],
   container: Container,
-  orientations: [number, number, number][]
 ): Placement[] {
   console.log('🔍 Starting analytical layering with', placements.length, 'existing placements');
   
