@@ -51,7 +51,7 @@ export function turboAlgorithm(box: BoxDimensions, container: Container): Calcul
   console.log('🔧 After compaction:', allPlacements.length, 'boxes');
 
   // ─── Stage 7: Analytical Layering ────────────────────────
-  const analyticalLayers = addAnalyticalLayers(allPlacements, container, orientations);
+  const analyticalLayers = addAnalyticalLayers(allPlacements, container);
   allPlacements.push(...analyticalLayers);
   console.log('🎯 After analytical layering:', allPlacements.length, 'boxes (added', analyticalLayers.length, ')');
 
