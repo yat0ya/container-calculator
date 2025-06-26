@@ -48,7 +48,7 @@ export function VisualizationModal({ isOpen, onClose, result, boxDimensions, con
             <div>
               <p className="text-base font-medium text-gray-600 mb-0.5">Container Dimensions</p>
               <p className="text-lg text-gray-800">
-                {container.length.toFixed(2)} × {container.width.toFixed(2)} × {container.height.toFixed(2)} m
+                {(container.length / 1000).toFixed(2)} × {(container.width / 1000).toFixed(2)} × {(container.height / 1000).toFixed(2)} m
               </p>
             </div>
             <div>
