@@ -4,17 +4,30 @@ import { EPSILON } from '../../constants';
 type Axis = 'x' | 'y' | 'z';
 type AxisIndex = 0 | 1 | 2;
 
-/**
- * Aligns all boxes to sit flush on floor/walls/boxes along x, y, and z.
- */
 export function alignBoxesAnalytically(placements: Placement[]): void {
   const axes: Axis[] = ['x', 'y', 'z'];
+
+  // Estimate where the repeated wall ends
+  const xCounts = new Map<number, number>();
+  for (const p of placements) {
+    const x = Math.round(p.position.x * 1000) / 1000;
+    xCounts.set(x, (xCounts.get(x) || 0) + 1);
+  }
+
+  const wallXs = Array.from(xCounts.entries())
+    .filter(([, count]) => count > 1)
+    .map(([x]) => x)
+    .sort((a, b) => a - b);
+  const wallEndX = wallXs.length ? wallXs[wallXs.length - 1] : 0;
+
+  // Only align boxes in the tail
+  const tailBoxes = placements.filter(p => p.position.x >= wallEndX);
 
   for (const axis of axes) {
     const axisIndex = axisToIndex(axis);
     const [other1, other2] = getOtherAxes(axis);
 
-    for (const box of placements) {
+    for (const box of tailBoxes) {
       const pos = box.position[axis];
 
       const base1 = box.position[other1];
@@ -43,7 +56,6 @@ export function alignBoxesAnalytically(placements: Placement[]): void {
         }
       }
 
-      // Snap the box flush along the current axis
       box.position[axis] = maxSnap;
     }
   }

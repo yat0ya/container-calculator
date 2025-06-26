@@ -1,45 +1,43 @@
 import { Placement } from '../../types';
-import { EPSILON } from '../../constants';
-import { boxesOverlap } from '../../utils';
 
 export function snapBoxesTightly(placements: Placement[]): void {
   const axes: ('x' | 'y' | 'z')[] = ['x', 'y', 'z'];
-  let moved = true;
 
-  while (moved) {
-    moved = false;
+  for (const axis of axes) {
+    // Sort placements by position along current axis
+    placements.sort((a, b) => a.position[axis] - b.position[axis]);
 
-    for (const axis of axes) {
-      // Always sort for consistent compression direction
-      placements.sort((a, b) => a.position[axis] - b.position[axis]);
+    for (let i = 0; i < placements.length; i++) {
+      const box = placements[i];
+      let maxEndBefore = 0;
 
-      for (const box of placements) {
-        let delta = 0;
-        let trial = { ...box.position };
-        let step = EPSILON * 5;
+      for (let j = 0; j < i; j++) {
+        const other = placements[j];
 
-        // Try moving in -axis direction as far as possible
-        while (true) {
-          trial[axis] = box.position[axis] - step - delta;
+        // Check overlap in the two other axes
+        const otherAxes = axes.filter(a => a !== axis) as ('x' | 'y')[];
+        let overlaps = true;
 
-          if (trial[axis] < 0) break;
+        for (const a of otherAxes) {
+          const aMin = box.position[a];
+          const aMax = aMin + box.rotation[axes.indexOf(a)];
+          const bMin = other.position[a];
+          const bMax = bMin + other.rotation[axes.indexOf(a)];
 
-          const trialPlacement: Placement = {
-            position: trial,
-            rotation: [...box.rotation]
-          };
+          if (aMax <= bMin || aMin >= bMax) {
+            overlaps = false;
+            break;
+          }
+        }
 
-          const overlap = placements.some(
-            other => other !== box && boxesOverlap(trialPlacement, other)
-          );
-
-          if (overlap) break;
-
-          delta += step;
-          box.position[axis] = trial[axis];
-          moved = true;
+        if (overlaps) {
+          const otherEnd = other.position[axis] + other.rotation[axes.indexOf(axis)];
+          maxEndBefore = Math.max(maxEndBefore, otherEnd);
         }
       }
+
+      // Snap to maximum blocking end
+      box.position[axis] = maxEndBefore;
     }
   }
 }
