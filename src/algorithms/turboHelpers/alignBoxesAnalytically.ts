@@ -1,5 +1,4 @@
-import { Placement } from '../../types';
-import { EPSILON } from '../../constants';
+import { Placement } from './types';
 
 type Axis = 'x' | 'y' | 'z';
 type AxisIndex = 0 | 1 | 2;
@@ -10,7 +9,7 @@ export function alignBoxesAnalytically(placements: Placement[]): void {
   // Estimate where the repeated wall ends
   const xCounts = new Map<number, number>();
   for (const p of placements) {
-    const x = Math.round(p.position.x * 1000) / 1000;
+    const x = p.position.x;
     xCounts.set(x, (xCounts.get(x) || 0) + 1);
   }
 
@@ -44,14 +43,14 @@ export function alignBoxesAnalytically(placements: Placement[]): void {
         const otherEnd = other.position[axis] + otherSize;
 
         const overlaps1 =
-          base1 + size1 > other.position[other1] + EPSILON &&
-          base1 < other.position[other1] + other.rotation[axisToIndex(other1)] - EPSILON;
+          base1 + size1 > other.position[other1] &&
+          base1 < other.position[other1] + other.rotation[axisToIndex(other1)];
 
         const overlaps2 =
-          base2 + size2 > other.position[other2] + EPSILON &&
-          base2 < other.position[other2] + other.rotation[axisToIndex(other2)] - EPSILON;
+          base2 + size2 > other.position[other2] &&
+          base2 < other.position[other2] + other.rotation[axisToIndex(other2)];
 
-        if (overlaps1 && overlaps2 && otherEnd <= pos + EPSILON) {
+        if (overlaps1 && overlaps2 && otherEnd <= pos) {
           maxSnap = Math.max(maxSnap, otherEnd);
         }
       }

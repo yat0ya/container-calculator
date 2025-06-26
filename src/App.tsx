@@ -8,7 +8,7 @@ import { recursiveAlgorithm } from './algorithms/recursive';
 import { humanLikeAlgorithm } from './algorithms/humanLike';
 import { pluggerAlgorithm } from './algorithms/plugger';
 import { turboAlgorithm } from './algorithms/turbo';
-import { DEFAULT_CONTAINER, CONTAINERS } from './constants';
+import { DEFAULT_CONTAINER, CONTAINERS } from './algorithms/turboHelpers/constants';
 import { Algorithm } from './types';
 
 function App() {

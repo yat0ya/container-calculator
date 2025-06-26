@@ -1,6 +1,5 @@
-import { Placement, Container } from '../../types';
-import { boxesOverlap } from '../../utils';
-import { EPSILON } from '../../constants';
+import { Placement, Container } from './types';
+import { boxesOverlap } from '../turboHelpers/utils';
 
 /**
  * Greedily fills leftover tail space from bottom up using all orientations.
@@ -11,7 +10,7 @@ export function patchSmallGaps(
   container: Container,
   orientations: [number, number, number][]
 ): Placement[] {
-  const GRID = 0.01; // 1cm resolution
+  const GRID = 10; // 10 mm resolution
   const newPlacements: Placement[] = [];
   const all = [...existing];
 
@@ -21,15 +20,15 @@ export function patchSmallGaps(
   let tailStartX = 0;
   for (const p of existing) {
     const endX = p.position.x + p.rotation[0];
-    if (endX > tailStartX + EPSILON) {
+    if (endX > tailStartX) {
       tailStartX = endX;
     }
   }
   tailStartX = snap(tailStartX);
 
   // Limit patching only to tail region
-  for (let x = tailStartX; x + EPSILON < container.length; x += GRID) {
-    for (let z = 0; z + EPSILON < container.width; z += GRID) {
+  for (let x = tailStartX; x < container.length; x += GRID) {
+    for (let z = 0; z < container.width; z += GRID) {
       const supportHeights = getSupportHeightsAt(x, z, all);
 
       for (const y of supportHeights) {
@@ -41,9 +40,9 @@ export function patchSmallGaps(
           };
 
           if (
-            pos.x + l > container.length + EPSILON ||
-            pos.y + h > container.height + EPSILON ||
-            pos.z + w > container.width + EPSILON
+            pos.x + l > container.length ||
+            pos.y + h > container.height ||
+            pos.z + w > container.width
           ) continue;
 
           const newBox: Placement = {
@@ -74,8 +73,8 @@ function getSupportHeightsAt(x: number, z: number, placements: Placement[]): num
     const pl = p.rotation[0];
     const pw = p.rotation[2];
 
-    const coversX = x >= px - EPSILON && x <= px + pl + EPSILON;
-    const coversZ = z >= pz - EPSILON && z <= pz + pw + EPSILON;
+    const coversX = x >= px && x <= px + pl;
+    const coversZ = z >= pz && z <= pz + pw;
 
     if (coversX && coversZ) {
       const top = p.position.y + p.rotation[1];

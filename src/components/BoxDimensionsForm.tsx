@@ -1,7 +1,7 @@
 import React from 'react';
 import { Calculator, Loader2, Server } from 'lucide-react';
-import { Algorithm, BoxDimensions, Container } from '../types';
-import { ALGORITHMS, CONTAINERS } from '../constants';
+import { Algorithm, BoxDimensions, Container } from '../algorithms/turboHelpers/types'; // ✅ updated
+import { ALGORITHMS, CONTAINERS } from '../algorithms/turboHelpers/constants'; // ✅ updated
 import { version } from '../../package.json';
 
 interface BoxDimensionsFormProps {
@@ -47,7 +47,10 @@ export function BoxDimensionsForm({
           >
             {CONTAINERS.map(container => (
               <option key={container.id} value={container.id}>
-                {container.name} ({container.length.toFixed(2)}m × {container.width.toFixed(2)}m × {container.height.toFixed(2)}m) - Max Load: {container.maxLoad}kg
+                {container.name} (
+                {(container.length / 1000).toFixed(2)}m ×
+                {(container.width / 1000).toFixed(2)}m ×
+                {(container.height / 1000).toFixed(2)}m) - Max Load: {container.maxLoad}kg
               </option>
             ))}
           </select>
