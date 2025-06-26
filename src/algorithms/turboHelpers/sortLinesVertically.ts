@@ -1,11 +1,10 @@
-import { Placement } from '../../types';
-import { EPSILON } from '../../constants';
+import { Placement } from './types';
 
 export function sortLinesVertically(placements: Placement[]): Placement[] {
   const depthLayers = new Map<number, Placement[]>();
-  
+
   placements.forEach(placement => {
-    const z = Math.round(placement.position.z / EPSILON) * EPSILON;
+    const z = placement.position.z;
     if (!depthLayers.has(z)) {
       depthLayers.set(z, []);
     }
@@ -16,9 +15,9 @@ export function sortLinesVertically(placements: Placement[]): Placement[] {
 
   depthLayers.forEach(layerPlacements => {
     const lineGroups = new Map<number, Placement[]>();
-    
+
     layerPlacements.forEach(placement => {
-      const y = Math.round(placement.position.y / EPSILON) * EPSILON;
+      const y = placement.position.y;
       if (!lineGroups.has(y)) {
         lineGroups.set(y, []);
       }
@@ -32,7 +31,7 @@ export function sortLinesVertically(placements: Placement[]): Placement[] {
       lineLengths.set(y, maxX - minX);
     });
 
-    const sortedYLevels = Array.from(lineGroups.keys()).sort((a, b) => 
+    const sortedYLevels = Array.from(lineGroups.keys()).sort((a, b) =>
       lineLengths.get(b)! - lineLengths.get(a)!
     );
 

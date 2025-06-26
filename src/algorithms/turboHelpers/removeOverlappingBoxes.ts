@@ -1,6 +1,5 @@
-import { Placement } from '../../types';
-import { boxesOverlap } from '../../utils';
-import { EPSILON } from '../../constants';
+import { Placement } from './types';
+import { boxesOverlap } from '../turboHelpers/utils';
 
 /**
  * Builds a support map indicating which boxes depend on which.
@@ -10,15 +9,16 @@ function buildSupportMap(placements: Placement[]): Map<Placement, Placement[]> {
 
   for (const base of placements) {
     const baseTop = base.position.y + base.rotation[1];
+
     for (const box of placements) {
       if (box === base) continue;
 
       const isAbove =
-        Math.abs(box.position.y - baseTop) < EPSILON &&
-        box.position.x + EPSILON >= base.position.x &&
-        box.position.x <= base.position.x + base.rotation[0] + EPSILON &&
-        box.position.z + EPSILON >= base.position.z &&
-        box.position.z <= base.position.z + base.rotation[2] + EPSILON;
+        box.position.y === baseTop &&
+        box.position.x >= base.position.x &&
+        box.position.x <= base.position.x + base.rotation[0] &&
+        box.position.z >= base.position.z &&
+        box.position.z <= base.position.z + base.rotation[2];
 
       if (isAbove) {
         if (!supportMap.has(base)) {

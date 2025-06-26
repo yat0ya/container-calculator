@@ -1,6 +1,5 @@
-import { Placement, Container } from '../../types';
-import { EPSILON } from '../../constants';
-import { boxesOverlap } from '../../utils';
+import { Placement, Container } from './types';
+import { boxesOverlap } from '../turboHelpers/utils';
 
 export function repeatPattern(placements: Placement[], container: Container): Placement[] {
   const repeated: Placement[] = [];
@@ -8,10 +7,10 @@ export function repeatPattern(placements: Placement[], container: Container): Pl
   for (const { position, rotation } of placements) {
     const [l, h, w] = rotation;
 
-    for (let x = position.x; x + l <= container.length + EPSILON; x += l) {
+    for (let x = position.x; x + l <= container.length; x += l) {
       const newPlacement: Placement = {
         position: { x, y: position.y, z: position.z },
-        rotation: [l, h, w] as [number, number, number]
+        rotation: [l, h, w]
       };
 
       let hasOverlap = false;

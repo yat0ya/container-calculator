@@ -1,5 +1,5 @@
-import { Container, Placement } from '../../types';
-import { boxesOverlap } from '../../utils';
+import { Container, Placement } from './types';
+import { boxesOverlap } from '../turboHelpers/utils'; // updated import path
 
 export function buildWall(container: Container, orientations: [number, number, number][]): Placement[] {
   const allOrientations: [number, number, number][] = Array.from(
@@ -13,17 +13,17 @@ export function buildWall(container: Container, orientations: [number, number, n
     )
   ).map(s => JSON.parse(s) as [number, number, number]);
 
-  const TIME_LIMIT = 1000;
+  const TIME_LIMIT = 1000; // ms
   const MAX_DEPTH = 30;
   const start = Date.now();
   const memo = new Set<string>();
   let best: [number, number, number][] = [];
 
   const scoreLayout = (layout: [number, number, number][]) =>
-    layout.reduce((sum, [, h, w]) => sum + h * w, 0);
+    layout.reduce((sum, [, h, w]) => sum + h * w, 0); // mm² coverage
 
   function layoutKey(layout: [number, number, number][]) {
-    return layout.map(([, h, w]) => `${h.toFixed(2)}x${w.toFixed(2)}`).join('|');
+    return layout.map(([, h, w]) => `${h}x${w}`).join('|');
   }
 
   function backtrack(layout: [number, number, number][], widthLeft: number, depth: number) {
@@ -37,6 +37,7 @@ export function buildWall(container: Container, orientations: [number, number, n
     const candidates = allOrientations
       .filter(([, , w]) => w <= widthLeft)
       .sort((a, b) => b[2] - a[2]);
+      console.log('🔍 Trying widthLeft:', widthLeft, 'candidates:', candidates);
 
     for (const o of candidates) {
       backtrack([...layout, o], widthLeft - o[2], depth + 1);
