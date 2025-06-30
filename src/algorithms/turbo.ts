@@ -30,7 +30,7 @@ export function turboAlgorithm(box: BoxDimensions, container: Container): Calcul
   const boxInMillimeters = convertToMillimeters(box);
   const orientations = generateOrientations(boxInMillimeters);
   console.log('📦 Box in mm:', boxInMillimeters);
-  console.log('🔄 Orientations:', orientations); 
+  console.log('🔄 Orientations:', orientations);
   console.log('🔄 Available orientations:', orientations.length);
   logTime('Stage 1: Preprocessing');
 
@@ -60,9 +60,9 @@ export function turboAlgorithm(box: BoxDimensions, container: Container): Calcul
   logTime('Stage 5: Fill Tail Area');
 
   // ─── Stage 6: Post-placement Compaction ──────────────────
-  const allPlacements = [...sortedVertically, ...filledTail];
+  let allPlacements = [...sortedVertically, ...filledTail];
   // console.log('📦 Before compaction:', allPlacements.length, 'boxes');
-  snapBoxesTightly(allPlacements);
+  snapBoxesTightly(allPlacements, container);
   alignBoxesAnalytically(allPlacements);
   // console.log('🔧 After compaction:', allPlacements.length, 'boxes');
   logTime('Stage 6: Post-placement Compaction');
@@ -86,9 +86,57 @@ export function turboAlgorithm(box: BoxDimensions, container: Container): Calcul
   logTime('Stage 9: Final Insertion Sweep');
 
   // ─── Stage 10: Final Compaction ──────────────────────────
-  snapBoxesTightly(allPlacements);
+  snapBoxesTightly(allPlacements, container);
   alignBoxesAnalytically(allPlacements);
   logTime('Stage 10: Final Compaction');
+
+  // ─── Cleanup: Remove Boxes Still Outside Container ────────
+  const beforeCleanup = allPlacements.length;
+
+  allPlacements = allPlacements.filter(p => {
+    const endX = p.position.x + p.rotation[0];
+    const endY = p.position.y + p.rotation[1];
+    const endZ = p.position.z + p.rotation[2];
+
+    return (
+      p.position.x >= 0 && p.position.y >= 0 && p.position.z >= 0 &&
+      endX <= container.length &&
+      endY <= container.height &&
+      endZ <= container.width
+    );
+  });
+
+  const removedCount = beforeCleanup - allPlacements.length;
+
+  if (removedCount > 0) {
+    console.warn(`🧹 Removed ${removedCount} box(es) that exceeded container boundaries`);
+  }
+
+
+  // ─── Check All Boxes Are Within Container Bounds ──────────
+  const outOfBounds = allPlacements.filter(p => {
+    const endX = p.position.x + p.rotation[0];
+    const endY = p.position.y + p.rotation[1];
+    const endZ = p.position.z + p.rotation[2];
+
+    return (
+      p.position.x < 0 || p.position.y < 0 || p.position.z < 0 ||
+      endX > container.length || endY > container.height || endZ > container.width
+    );
+  });
+
+  if (outOfBounds.length > 0) {
+    console.warn(`🚫 ${outOfBounds.length} boxes exceed container boundaries`);
+    console.table(outOfBounds.map(p => ({
+      position: p.position,
+      rotation: p.rotation,
+      endX: p.position.x + p.rotation[0],
+      endY: p.position.y + p.rotation[1],
+      endZ: p.position.z + p.rotation[2]
+    })));
+  } else {
+    console.log('✅ All boxes fit within container bounds');
+  }
 
   // ─── Stage 11: Final Validation ──────────────────────────
   const validPlacements = removeOverlappingBoxes(allPlacements);
