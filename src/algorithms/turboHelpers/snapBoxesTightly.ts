@@ -4,7 +4,7 @@ export function snapBoxesTightly(placements: Placement[]): void {
   const axes: ('x' | 'y' | 'z')[] = ['x', 'y', 'z'];
 
   for (const axis of axes) {
-    // Sort placements by position along current axis
+    // Sort placements by position along the current axis
     placements.sort((a, b) => a.position[axis] - b.position[axis]);
 
     for (let i = 0; i < placements.length; i++) {
@@ -15,28 +15,28 @@ export function snapBoxesTightly(placements: Placement[]): void {
         const other = placements[j];
 
         // Check overlap in the two other axes
-        const otherAxes = axes.filter(a => a !== axis) as ('x' | 'y')[];
-        let overlaps = true;
+        const [a1, a2] = axes.filter(a => a !== axis);
+        const boxA1Min = box.position[a1];
+        const boxA1Max = boxA1Min + box.rotation[axes.indexOf(a1)];
+        const otherA1Min = other.position[a1];
+        const otherA1Max = otherA1Min + other.rotation[axes.indexOf(a1)];
 
-        for (const a of otherAxes) {
-          const aMin = box.position[a];
-          const aMax = aMin + box.rotation[axes.indexOf(a)];
-          const bMin = other.position[a];
-          const bMax = bMin + other.rotation[axes.indexOf(a)];
+        const boxA2Min = box.position[a2];
+        const boxA2Max = boxA2Min + box.rotation[axes.indexOf(a2)];
+        const otherA2Min = other.position[a2];
+        const otherA2Max = otherA2Min + other.rotation[axes.indexOf(a2)];
 
-          if (aMax <= bMin || aMin >= bMax) {
-            overlaps = false;
-            break;
-          }
-        }
+        const overlapsInOtherAxes =
+          boxA1Min < otherA1Max && boxA1Max > otherA1Min &&
+          boxA2Min < otherA2Max && boxA2Max > otherA2Min;
 
-        if (overlaps) {
+        if (overlapsInOtherAxes) {
           const otherEnd = other.position[axis] + other.rotation[axes.indexOf(axis)];
           maxEndBefore = Math.max(maxEndBefore, otherEnd);
         }
       }
 
-      // Snap to maximum blocking end
+      // Snap to the nearest valid position along the axis
       box.position[axis] = maxEndBefore;
     }
   }

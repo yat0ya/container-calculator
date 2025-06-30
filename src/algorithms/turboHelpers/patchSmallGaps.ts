@@ -2,85 +2,88 @@ import { Placement, Container } from './types';
 import { boxesOverlap } from '../turboHelpers/utils';
 
 /**
- * Greedily fills leftover tail space from bottom up using all orientations.
- * Only places on top of solid surfaces (floor or box).
+ * Fills leftover tail space by adding boxes on top of final stack surfaces.
+ * Uses only tail area and avoids full-volume scans.
  */
 export function patchSmallGaps(
   existing: Placement[],
   container: Container,
   orientations: [number, number, number][]
 ): Placement[] {
-  const GRID = 10; // 10 mm resolution
+  const GRID = 10; // mm resolution
   const newPlacements: Placement[] = [];
   const all = [...existing];
 
   const snap = (v: number) => Math.round(v / GRID) * GRID;
 
-  // Determine tailStartX from current placements
-  let tailStartX = 0;
+  // Detect start of tail based on densest X region
+  const xCount = new Map<number, number>();
   for (const p of existing) {
-    const endX = p.position.x + p.rotation[0];
-    if (endX > tailStartX) {
-      tailStartX = endX;
-    }
+    const x = snap(p.position.x);
+    xCount.set(x, (xCount.get(x) || 0) + 1);
   }
-  tailStartX = snap(tailStartX);
 
-  // Limit patching only to tail region
-  for (let x = tailStartX; x < container.length; x += GRID) {
-    for (let z = 0; z < container.width; z += GRID) {
-      const supportHeights = getSupportHeightsAt(x, z, all);
+  const sortedXs = [...xCount.entries()].sort((a, b) => b[1] - a[1]);
+  const wallAlignedX = sortedXs.find(([, count]) => count > 1)?.[0] ?? 0;
+  const tailStartX = snap(wallAlignedX + 10);
 
-      for (const y of supportHeights) {
-        for (const [l, h, w] of orientations) {
-          const pos = {
-            x: snap(x),
-            y,
-            z: snap(z)
-          };
+  // Pre-filter usable orientations
+  const filteredOrients = orientations.filter(([l, h, w]) =>
+    l <= container.length &&
+    h <= container.height &&
+    w <= container.width
+  );
 
-          if (
-            pos.x + l > container.length ||
-            pos.y + h > container.height ||
-            pos.z + w > container.width
-          ) continue;
+  // Build a top surface map: (x,z) → max Y
+  const topSurfaces = new Map<string, number>();
 
-          const newBox: Placement = {
-            position: pos,
-            rotation: [l, h, w]
-          };
+  for (const p of all) {
+    const topY = p.position.y + p.rotation[1];
+    const xStart = snap(p.position.x);
+    const xEnd = snap(p.position.x + p.rotation[0]);
+    const zStart = snap(p.position.z);
+    const zEnd = snap(p.position.z + p.rotation[2]);
 
-          const overlaps = all.some(p => boxesOverlap(newBox, p));
-          if (!overlaps) {
-            newPlacements.push(newBox);
-            all.push(newBox);
-          }
-        }
+    for (let x = xStart; x < xEnd; x += GRID) {
+      if (x < tailStartX) continue;
+
+      for (let z = zStart; z < zEnd; z += GRID) {
+        const key = `${x},${z}`;
+        const current = topSurfaces.get(key) ?? 0;
+        topSurfaces.set(key, Math.max(current, topY));
       }
     }
   }
 
-  return newPlacements;
-}
+  // Attempt placement at each top surface position
+  for (const [key, y] of topSurfaces.entries()) {
+    const [x, z] = key.split(',').map(Number);
 
-function getSupportHeightsAt(x: number, z: number, placements: Placement[]): number[] {
-  const heights = new Set<number>();
-  heights.add(0); // always try the floor
+    for (const [l, h, w] of filteredOrients) {
+      const pos = {
+        x: snap(x),
+        y: snap(y),
+        z: snap(z)
+      };
 
-  for (const p of placements) {
-    const px = p.position.x;
-    const pz = p.position.z;
-    const pl = p.rotation[0];
-    const pw = p.rotation[2];
+      if (
+        snap(pos.x + l) > container.length ||
+        snap(pos.y + h) > container.height ||
+        snap(pos.z + w) > container.width
+      ) continue;
 
-    const coversX = x >= px && x <= px + pl;
-    const coversZ = z >= pz && z <= pz + pw;
+      const newBox: Placement = {
+        position: pos,
+        rotation: [l, h, w]
+      };
 
-    if (coversX && coversZ) {
-      const top = p.position.y + p.rotation[1];
-      heights.add(top);
+      if (!all.some(p => boxesOverlap(newBox, p))) {
+        newPlacements.push(newBox);
+        all.push(newBox);
+      }
     }
   }
 
-  return Array.from(heights).sort((a, b) => a - b);
+  console.log(`📦 patchSmallGaps placed ${newPlacements.length} boxes`);
+  return newPlacements;
 }

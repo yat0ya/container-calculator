@@ -1,21 +1,5 @@
-import { Placement, Container } from './types';
+import { Placement, Container, TailArea } from './types';
 import { boxesOverlap } from '../turboHelpers/utils';
-
-interface Gap {
-  x: number;
-  y: number;
-  z: number;
-  width: number;
-  height: number;
-  depth: number;
-}
-
-interface TailArea {
-  startX: number;
-  length: number;
-  heightMap: Map<string, number>;
-  gaps: Gap[];
-}
 
 function getAllRotations([a, b, c]: [number, number, number]): [number, number, number][] {
   const perms: [number, number, number][] = [
@@ -49,7 +33,7 @@ export function fillTailArea(
     new Set(orientations.flatMap(getAllRotations).map(r => r.join(',')))
   ).map(r => r.split(',').map(Number) as [number, number, number]);
 
-  const sortedOrients = [...allRotations].sort(
+  const sortedOrients = allRotations.sort(
     (a, b) => (b[0] * b[1] * b[2]) - (a[0] * a[1] * a[2])
   );
 
@@ -87,7 +71,7 @@ export function fillTailArea(
   // Step 1: Fill known gaps first
   for (const gap of tail.gaps) {
     for (const [l, h, w] of sortedOrients) {
-      if (l <= gap.depth && h <= gap.height && w <= gap.width) {
+      if (l <= gap.length && h <= gap.height && w <= gap.width) {
         const pos = {
           x: snap(gap.x),
           y: snap(gap.y),
