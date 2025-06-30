@@ -3,7 +3,7 @@ import { boxesOverlap } from '../turboHelpers/utils';
 
 /**
  * Analytically identifies layering opportunities and fills them optimally.
- * Prioritizes following the rotation patterns from the bottom layer.
+ * Repeats the pattern upward until there's no room or support.
  */
 export function addAnalyticalLayers(
   placements: Placement[],
@@ -13,32 +13,35 @@ export function addAnalyticalLayers(
   const allPlacements = [...placements];
 
   // Find the bottom layer (y = 0)
-  const bottomLayer = placements.filter(p => p.position.y === 0);
-  if (bottomLayer.length === 0) return newPlacements;
+  let currentLayer = placements.filter(p => p.position.y === 0);
+  if (currentLayer.length === 0) return newPlacements;
 
-  const dominantRotation = findDominantRotation(bottomLayer);
-  const bottomLayerHeight = Math.max(...bottomLayer.map(p => p.rotation[1]));
-  const secondLayerY = bottomLayerHeight;
+  const dominantRotation = findDominantRotation(currentLayer);
+  const layerHeight = dominantRotation[1];
+  let currentY = layerHeight;
 
-  if (secondLayerY + dominantRotation[1] > container.height) {
-    return newPlacements;
-  }
+  while (currentY + layerHeight <= container.height) {
+    const nextLayer = createLayer(currentLayer, dominantRotation, currentY, container, allPlacements);
 
-  const secondLayerBoxes = createSecondLayer(bottomLayer, dominantRotation, secondLayerY, container, allPlacements);
+    if (nextLayer.length === 0) break;
 
-  for (const newBox of secondLayerBoxes) {
-    let hasOverlap = false;
-    for (const existing of allPlacements) {
-      if (boxesOverlap(newBox, existing)) {
-        hasOverlap = true;
-        break;
+    for (const newBox of nextLayer) {
+      let hasOverlap = false;
+      for (const existing of allPlacements) {
+        if (boxesOverlap(newBox, existing)) {
+          hasOverlap = true;
+          break;
+        }
+      }
+
+      if (!hasOverlap) {
+        newPlacements.push(newBox);
+        allPlacements.push(newBox);
       }
     }
 
-    if (!hasOverlap) {
-      newPlacements.push(newBox);
-      allPlacements.push(newBox);
-    }
+    currentLayer = nextLayer;
+    currentY += layerHeight;
   }
 
   return newPlacements;
@@ -73,43 +76,48 @@ function findDominantRotation(boxes: Placement[]): [number, number, number] {
 }
 
 /**
- * Creates a second layer by replicating the bottom layer pattern at a higher Y level.
+ * Creates a new layer by replicating the previous layer pattern at a higher Y level.
  */
-function createSecondLayer(
-  bottomLayer: Placement[],
-  dominantRotation: [number, number, number],
+function createLayer(
+  previousLayer: Placement[],
+  _dominantRotation: [number, number, number], // unused now
   layerY: number,
   container: Container,
   existingPlacements: Placement[]
 ): Placement[] {
-  const secondLayerBoxes: Placement[] = [];
+  const layerBoxes: Placement[] = [];
 
-  for (const bottomBox of bottomLayer) {
-    const supportArea = calculateSupportArea(bottomBox, bottomLayer);
-    const boxArea = dominantRotation[0] * dominantRotation[2];
+  for (const belowBox of previousLayer) {
+    const rotation = belowBox.rotation;
+    const boxArea = rotation[0] * rotation[2];
+
+    const newBox: Placement = {
+      position: {
+        x: belowBox.position.x,
+        y: layerY,
+        z: belowBox.position.z
+      },
+      rotation
+    };
+
+    const supportArea = calculateSupportArea(newBox, previousLayer);
 
     if (supportArea >= boxArea * 0.8) {
-      const newBox: Placement = {
-        position: {
-          x: bottomBox.position.x,
-          y: layerY,
-          z: bottomBox.position.z
-        },
-        rotation: dominantRotation
-      };
-
       if (
-        newBox.position.x + dominantRotation[0] <= container.length &&
-        newBox.position.y + dominantRotation[1] <= container.height &&
-        newBox.position.z + dominantRotation[2] <= container.width
+        newBox.position.x + rotation[0] <= container.length &&
+        newBox.position.y + rotation[1] <= container.height &&
+        newBox.position.z + rotation[2] <= container.width
       ) {
-        secondLayerBoxes.push(newBox);
+        layerBoxes.push(newBox);
       }
     }
   }
 
-  return secondLayerBoxes;
+  return layerBoxes;
 }
+
+
+
 
 /**
  * Calculates how much support area is available for a box position.
