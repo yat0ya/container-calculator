@@ -2,25 +2,25 @@ import { Placement } from './types';
 import { boxesOverlap } from '../turboHelpers/utils';
 
 /**
- * Builds a support map indicating which boxes depend on which.
+ * Builds a support map indicating which boxes are stacked on top of others.
  */
 function buildSupportMap(placements: Placement[]): Map<Placement, Placement[]> {
   const supportMap = new Map<Placement, Placement[]>();
 
   for (const base of placements) {
-    const baseTop = base.position.y + base.rotation[1];
+    const baseTopY = base.position.y + base.rotation[1];
 
     for (const box of placements) {
       if (box === base) continue;
 
-      const isAbove =
-        box.position.y === baseTop &&
+      const alignedAbove =
+        box.position.y === baseTopY &&
         box.position.x >= base.position.x &&
-        box.position.x <= base.position.x + base.rotation[0] &&
+        box.position.x < base.position.x + base.rotation[0] &&
         box.position.z >= base.position.z &&
-        box.position.z <= base.position.z + base.rotation[2];
+        box.position.z < base.position.z + base.rotation[2];
 
-      if (isAbove) {
+      if (alignedAbove) {
         if (!supportMap.has(base)) {
           supportMap.set(base, []);
         }
@@ -33,11 +33,16 @@ function buildSupportMap(placements: Placement[]): Map<Placement, Placement[]> {
 }
 
 /**
- * Recursively gathers all dependent boxes starting from a root.
+ * Recursively collects all boxes supported by the given root box.
  */
-function gatherDependentBoxes(root: Placement, supportMap: Map<Placement, Placement[]>, visited: Set<Placement>) {
+function gatherDependentBoxes(
+  root: Placement,
+  supportMap: Map<Placement, Placement[]>,
+  visited: Set<Placement>
+): void {
   if (visited.has(root)) return;
   visited.add(root);
+
   const dependents = supportMap.get(root) || [];
   for (const child of dependents) {
     gatherDependentBoxes(child, supportMap, visited);
@@ -45,16 +50,15 @@ function gatherDependentBoxes(root: Placement, supportMap: Map<Placement, Placem
 }
 
 /**
- * Removes the smallest number of overlapping boxes, starting with the most destructive ones.
+ * Iteratively removes overlapping boxes and their dependent stack.
  */
 export function removeOverlappingBoxes(placements: Placement[]): Placement[] {
   const remaining = new Set(placements);
   const supportMap = buildSupportMap(placements);
 
   while (true) {
-    const overlapCount = new Map<Placement, number>();
-
     const current = Array.from(remaining);
+    const overlapCount = new Map<Placement, number>();
     let anyOverlap = false;
 
     for (let i = 0; i < current.length; i++) {
@@ -71,10 +75,11 @@ export function removeOverlappingBoxes(placements: Placement[]): Placement[] {
 
     if (!anyOverlap) break;
 
-    // Remove the most overlapping box and its dependents
+    // Pick the box causing the most overlaps
     const [worstBox] = Array.from(overlapCount.entries())
-      .sort((a, b) => b[1] - a[1])[0];
+      .sort(([, countA], [, countB]) => countB - countA)[0];
 
+    // Remove it and all boxes that depend on it
     const toRemove = new Set<Placement>();
     gatherDependentBoxes(worstBox, supportMap, toRemove);
     for (const box of toRemove) {

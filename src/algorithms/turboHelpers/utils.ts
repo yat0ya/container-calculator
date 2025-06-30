@@ -45,3 +45,13 @@ export function convertToMillimeters(box: BoxDimensions): BoxDimensions {
     value: box.value,
   };
 }
+
+/**
+ * Sorts placements left-to-right (smallest x + width first).
+ * Used before tail area preparation.
+ */
+export function sortForTailArea(placements: Placement[]): Placement[] {
+  return [...placements].sort((a, b) =>
+    (a.position.x + a.rotation[0]) - (b.position.x + b.rotation[0])
+  );
+}

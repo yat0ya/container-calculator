@@ -1,20 +1,4 @@
-import { Container, Placement } from '../../types';
-
-export interface Gap {
-  x: number;
-  y: number;
-  z: number;
-  width: number;
-  height: number;
-  depth: number;
-}
-
-export interface TailArea {
-  startX: number;
-  length: number;
-  heightMap: Map<string, number>;
-  gaps: Gap[];
-}
+import { Container, Placement, Gap, TailArea } from './types';
 
 export function prepareTailArea(placements: Placement[], container: Container): TailArea {
   const GRID_SIZE = 10; // 10 mm grid
@@ -39,12 +23,8 @@ export function prepareTailArea(placements: Placement[], container: Container): 
   let countAtMax = 0;
   for (const p of placements) {
     const endX = p.position.x + p.rotation[0];
-    if (endX > secondMaxX && endX < maxX) {
-      secondMaxX = endX;
-    }
-    if (endX === maxX) {
-      countAtMax++;
-    }
+    if (endX > secondMaxX && endX < maxX) secondMaxX = endX;
+    if (endX === maxX) countAtMax++;
   }
 
   // 2. Decide tailStart (remove protrusions if minor)
@@ -66,13 +46,13 @@ export function prepareTailArea(placements: Placement[], container: Container): 
   const heightMap = new Map<string, number>();
   for (let z = 0; z < container.width; z += GRID_SIZE) {
     for (let y = 0; y < container.height; y += GRID_SIZE) {
-      const key = `${y},${z}`;
-      heightMap.set(key, 0);
+      heightMap.set(`${y},${z}`, 0);
     }
   }
 
   // 6. Add overhangs and gaps
   const gaps: Gap[] = [];
+
   for (const p of tailBoxes) {
     const endX = p.position.x + p.rotation[0];
     const overhang = endX - startX;
@@ -92,7 +72,7 @@ export function prepareTailArea(placements: Placement[], container: Container): 
         z: p.position.z,
         width: p.rotation[2],
         height: p.position.y,
-        depth: overhang
+        length: overhang // renamed from 'depth' for dimensional consistency
       });
     }
   }

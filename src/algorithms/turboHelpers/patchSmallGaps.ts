@@ -10,23 +10,27 @@ export function patchSmallGaps(
   container: Container,
   orientations: [number, number, number][]
 ): Placement[] {
-  const GRID = 10; // 10 mm resolution
+  const GRID = 10; // mm resolution
   const newPlacements: Placement[] = [];
   const all = [...existing];
 
   const snap = (v: number) => Math.round(v / GRID) * GRID;
 
-  // Determine tailStartX from current placements
-  let tailStartX = 0;
+  // Detect start of tail based on densest X region
+  const xCount = new Map<number, number>();
   for (const p of existing) {
-    const endX = p.position.x + p.rotation[0];
-    if (endX > tailStartX) {
-      tailStartX = endX;
-    }
+    const x = snap(p.position.x);
+    xCount.set(x, (xCount.get(x) || 0) + 1);
   }
-  tailStartX = snap(tailStartX);
 
-  // Limit patching only to tail region
+  const likelyWallEnd = [...xCount.entries()]
+    .filter(([, count]) => count > 1)
+    .map(([x]) => x)
+    .sort((a, b) => b - a)[0] ?? 0;
+
+  const tailStartX = snap(likelyWallEnd);
+
+  // Patch only tail region
   for (let x = tailStartX; x < container.length; x += GRID) {
     for (let z = 0; z < container.width; z += GRID) {
       const supportHeights = getSupportHeightsAt(x, z, all);
@@ -50,8 +54,7 @@ export function patchSmallGaps(
             rotation: [l, h, w]
           };
 
-          const overlaps = all.some(p => boxesOverlap(newBox, p));
-          if (!overlaps) {
+          if (!all.some(p => boxesOverlap(newBox, p))) {
             newPlacements.push(newBox);
             all.push(newBox);
           }
@@ -73,12 +76,11 @@ function getSupportHeightsAt(x: number, z: number, placements: Placement[]): num
     const pl = p.rotation[0];
     const pw = p.rotation[2];
 
-    const coversX = x >= px && x <= px + pl;
-    const coversZ = z >= pz && z <= pz + pw;
+    const coversX = x >= px && x < px + pl;
+    const coversZ = z >= pz && z < pz + pw;
 
     if (coversX && coversZ) {
-      const top = p.position.y + p.rotation[1];
-      heights.add(top);
+      heights.add(p.position.y + p.rotation[1]);
     }
   }
 

@@ -1,5 +1,5 @@
 import { Container, Placement } from './types';
-import { boxesOverlap } from '../turboHelpers/utils'; // updated import path
+import { boxesOverlap } from './utils'; // updated import path
 
 export function buildWall(container: Container, orientations: [number, number, number][]): Placement[] {
   const allOrientations: [number, number, number][] = Array.from(
@@ -37,7 +37,6 @@ export function buildWall(container: Container, orientations: [number, number, n
     const candidates = allOrientations
       .filter(([, , w]) => w <= widthLeft)
       .sort((a, b) => b[2] - a[2]);
-      console.log('🔍 Trying widthLeft:', widthLeft, 'candidates:', candidates);
 
     for (const o of candidates) {
       backtrack([...layout, o], widthLeft - o[2], depth + 1);
@@ -64,22 +63,22 @@ export function buildWall(container: Container, orientations: [number, number, n
 
   for (const box of sortedLayout) {
     const w = box[2];
-    const stack = stackColumn(allOrientations, container.height, w);
+    const column = findBestStack(allOrientations, container.height, w);
     const localCounts = new Map<string, number>();
 
-    for (const rot of stack) {
+    for (const rot of column) {
       const key = JSON.stringify(rot);
       localCounts.set(key, (localCounts.get(key) || 0) + 1);
     }
 
-    const sortedStack = stack.slice().sort((a, b) => {
+    const sortedColumn = column.slice().sort((a, b) => {
       const countA = localCounts.get(JSON.stringify(a)) || 0;
       const countB = localCounts.get(JSON.stringify(b)) || 0;
       return countA - countB;
     }).reverse();
 
     let y = 0;
-    for (const [l2, h2, w2] of sortedStack) {
+    for (const [l2, h2, w2] of sortedColumn) {
       const newPlacement: Placement = {
         position: { x: 0, y, z },
         rotation: [l2, h2, w2] as [number, number, number]
@@ -105,13 +104,14 @@ export function buildWall(container: Container, orientations: [number, number, n
   return placements;
 }
 
-function stackColumn(
+function findBestStack(
   orientations: [number, number, number][],
   height: number,
   width: number
 ): [number, number, number][] {
   const fits = orientations.filter(([, h, w]) => w === width && h <= height);
-  let bestStack: [number, number, number][] = [], bestScore = 0;
+  let bestStack: [number, number, number][] = [];
+  let bestScore = 0;
 
   function recurse(remaining: number, stack: [number, number, number][]) {
     for (const box of fits) {
@@ -120,7 +120,10 @@ function stackColumn(
 
       const next = [...stack, box];
       const score = next.reduce((sum, [, h, w]) => sum + h * w, 0);
-      if (score > bestScore) [bestStack, bestScore] = [next, score];
+      if (score > bestScore) {
+        bestStack = next;
+        bestScore = score;
+      }
 
       recurse(remaining - h, next);
     }

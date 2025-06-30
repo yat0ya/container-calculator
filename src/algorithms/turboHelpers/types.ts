@@ -45,3 +45,19 @@ export interface CalculationInput {
   container: Container;         // input from JSON in mm
   algorithm: Algorithm;
 }
+
+export interface Gap {
+  x: number;
+  y: number;
+  z: number;
+  width: number;
+  height: number;
+  length: number; // was 'depth' before
+}
+
+export interface TailArea {
+  startX: number;
+  length: number;
+  heightMap: Map<string, number>;
+  gaps: Gap[];
+}

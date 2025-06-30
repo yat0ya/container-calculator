@@ -1,27 +1,20 @@
 import { Placement, Container } from './types';
-import { boxesOverlap } from '../turboHelpers/utils';
+import { boxesOverlap } from './utils';
 
 export function repeatPattern(placements: Placement[], container: Container): Placement[] {
   const repeated: Placement[] = [];
 
   for (const { position, rotation } of placements) {
-    const [l, h, w] = rotation;
+    const [length, height, width] = rotation;
 
-    for (let x = position.x; x + l <= container.length; x += l) {
+    for (let currentX = position.x; currentX + length <= container.length; currentX += length) {
       const newPlacement: Placement = {
-        position: { x, y: position.y, z: position.z },
-        rotation: [l, h, w]
+        position: { x: currentX, y: position.y, z: position.z },
+        rotation: [length, height, width]
       };
 
-      let hasOverlap = false;
-      for (const existing of repeated) {
-        if (boxesOverlap(newPlacement, existing)) {
-          hasOverlap = true;
-          break;
-        }
-      }
-
-      if (!hasOverlap) {
+      const overlaps = repeated.some(existing => boxesOverlap(newPlacement, existing));
+      if (!overlaps) {
         repeated.push(newPlacement);
       }
     }
