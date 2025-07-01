@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Calculator, Loader2, Server } from 'lucide-react';
 import { Algorithm, BoxDimensions, Container } from '../algorithms/turboHelpers/types'; // ✅ updated
 import { ALGORITHMS, CONTAINERS } from '../algorithms/turboHelpers/constants'; // ✅ updated
@@ -27,6 +27,30 @@ export function BoxDimensionsForm({
   onCalculateApi,
   isCalculating
 }: BoxDimensionsFormProps) {
+  // Track which fields have been touched (lost focus) and their validation state
+  const [fieldValidation, setFieldValidation] = useState<Record<string, { touched: boolean; isValid: boolean }>>({});
+
+  // Handle blur events to validate and mark fields as touched
+  const handleBlur = (fieldName: string, value: number) => {
+    const isValid = !isNaN(value) && value >= 10;
+    setFieldValidation(prev => ({
+      ...prev,
+      [fieldName]: { touched: true, isValid }
+    }));
+  };
+
+  // Check if a field should show validation error
+  const shouldShowError = (fieldName: string) => {
+    const validation = fieldValidation[fieldName];
+    return validation?.touched && !validation?.isValid;
+  };
+
+  // Check if any dimension is invalid or empty for button disable
+  const hasInvalidOrEmptyDimensions = 
+    !boxDimensions.length || boxDimensions.length < 10 ||
+    !boxDimensions.width || boxDimensions.width < 10 ||
+    !boxDimensions.height || boxDimensions.height < 10;
+
   return (
     <>
       <div className="flex items-center justify-between mb-6">
@@ -64,7 +88,12 @@ export function BoxDimensionsForm({
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             {ALGORITHMS.map(algorithm => (
-              <option key={algorithm.id} value={algorithm.id}>
+              <option 
+                key={algorithm.id} 
+                value={algorithm.id}
+                disabled={algorithm.id !== 'turbo'}
+                className={algorithm.id !== 'turbo' ? 'text-gray-400' : ''}
+              >
                 {algorithm.name}
               </option>
             ))}
@@ -81,30 +110,57 @@ export function BoxDimensionsForm({
             <input
               type="number"
               name="length"
-              value={boxDimensions.length}
+              value={boxDimensions.length || ''}
               onChange={onDimensionsChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              onBlur={(e) => handleBlur('length', parseFloat(e.target.value))}
+              min="10"
+              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                shouldShowError('length') ? 'border-red-300 bg-red-50' : 'border-gray-300'
+              }`}
             />
+            {shouldShowError('length') && (
+              <p className="text-red-500 text-xs mt-1">
+                {!boxDimensions.length ? 'This field is required' : 'Minimum value is 10 cm'}
+              </p>
+            )}
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-600 mb-1">Width (cm)</label>
             <input
               type="number"
               name="width"
-              value={boxDimensions.width}
+              value={boxDimensions.width || ''}
               onChange={onDimensionsChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              onBlur={(e) => handleBlur('width', parseFloat(e.target.value))}
+              min="10"
+              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                shouldShowError('width') ? 'border-red-300 bg-red-50' : 'border-gray-300'
+              }`}
             />
+            {shouldShowError('width') && (
+              <p className="text-red-500 text-xs mt-1">
+                {!boxDimensions.width ? 'This field is required' : 'Minimum value is 10 cm'}
+              </p>
+            )}
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-600 mb-1">Height (cm)</label>
             <input
               type="number"
               name="height"
-              value={boxDimensions.height}
+              value={boxDimensions.height || ''}
               onChange={onDimensionsChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              onBlur={(e) => handleBlur('height', parseFloat(e.target.value))}
+              min="10"
+              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                shouldShowError('height') ? 'border-red-300 bg-red-50' : 'border-gray-300'
+              }`}
             />
+            {shouldShowError('height') && (
+              <p className="text-red-500 text-xs mt-1">
+                {!boxDimensions.height ? 'This field is required' : 'Minimum value is 10 cm'}
+              </p>
+            )}
           </div>
         </div>
         
@@ -136,7 +192,7 @@ export function BoxDimensionsForm({
         <div className="flex gap-2">
           <button
             onClick={onCalculate}
-            disabled={isCalculating}
+            disabled={isCalculating || hasInvalidOrEmptyDimensions}
             className="flex-1 bg-blue-600 text-white py-3 rounded-md hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 disabled:bg-blue-400 disabled:cursor-not-allowed"
           >
             {isCalculating ? (
@@ -147,9 +203,11 @@ export function BoxDimensionsForm({
             {isCalculating ? 'Calculating...' : 'Calculate'}
           </button>
           
+          {/* API Button - Hidden for now, can be re-enabled in future */}
+          {/*
           <button
             onClick={onCalculateApi}
-            disabled={isCalculating}
+            disabled={isCalculating || hasInvalidOrEmptyDimensions}
             className="bg-blue-600 text-white px-4 py-3 rounded-md hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 disabled:bg-blue-400 disabled:cursor-not-allowed"
             title="Calculate via API"
           >
@@ -160,6 +218,7 @@ export function BoxDimensionsForm({
             )}
             {isCalculating ? 'Calculating...' : 'API'}
           </button>
+          */}
         </div>
       </div>
     </>
