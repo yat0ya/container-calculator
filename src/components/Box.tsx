@@ -1,4 +1,8 @@
-import { Edges } from '@react-three/drei';
+import { EdgesGeometry, LineSegments, LineBasicMaterial, BoxGeometry } from 'three';
+import { extend } from '@react-three/fiber';
+
+// Extend R3F with the required Three.js components
+extend({ EdgesGeometry, LineSegments, LineBasicMaterial });
 
 interface BoxProps {
   position: [number, number, number];
@@ -8,10 +12,22 @@ interface BoxProps {
 
 export function Box({ position, size, color }: BoxProps) {
   return (
-    <mesh position={position}>
-      <boxGeometry args={size} />
-      <meshStandardMaterial color={color} transparent opacity={0.85} />
-      <Edges scale={1} threshold={15} color="#000000" />
-    </mesh>
+    <group position={position}>
+      {/* Main solid box */}
+      <mesh castShadow receiveShadow>
+        <boxGeometry args={size} />
+        <meshStandardMaterial 
+          color={color} 
+          roughness={0.8}
+          metalness={0.1}
+        />
+      </mesh>
+      
+      {/* Subtle edges - thin and light gray */}
+      <lineSegments>
+        <edgesGeometry args={[new BoxGeometry(...size)]} />
+        <lineBasicMaterial color="#565656" linewidth={2} />
+      </lineSegments>
+    </group>
   );
 }

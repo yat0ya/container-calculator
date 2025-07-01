@@ -1,8 +1,8 @@
-import { BoxDimensions, CalculationResult, Container, BoxPlacement } from '../types';
+import { BoxDimensions, CalculationResult, Container, Placement } from '../types';
 
 interface Layer {
   height: number;
-  boxes: BoxPlacement[];
+  boxes: Placement[];
 }
 
 export function layerAlgorithm(boxDim: BoxDimensions, container: Container): CalculationResult {
@@ -27,10 +27,10 @@ export function layerAlgorithm(boxDim: BoxDimensions, container: Container): Cal
     availableLength: number,
     availableWidth: number,
     rotation: [number, number, number]
-  ): { count: number; placements: BoxPlacement[] } {
+  ): { count: number; placements: Placement[] } {
     const lengthFit = Math.floor(availableLength / rotation[0]);
     const widthFit = Math.floor(availableWidth / rotation[2]);
-    const placements: BoxPlacement[] = [];
+    const placements: Placement[] = [];
     
     for (let l = 0; l < lengthFit; l++) {
       for (let w = 0; w < widthFit; w++) {
@@ -52,9 +52,9 @@ export function layerAlgorithm(boxDim: BoxDimensions, container: Container): Cal
     layerHeight: number,
     availableLength: number,
     availableWidth: number
-  ): { count: number; placements: BoxPlacement[] } {
+  ): { count: number; placements: Placement[] } {
     let bestCount = 0;
-    let bestPlacements: BoxPlacement[] = [];
+    let bestPlacements: Placement[] = [];
 
     rotations.forEach((rotation) => {
       if (rotation[1] <= container.height - layerHeight) {
@@ -81,7 +81,7 @@ export function layerAlgorithm(boxDim: BoxDimensions, container: Container): Cal
   const layers: Layer[] = [];
   let currentHeight = 0;
   let totalBoxes = 0;
-  const allPlacements: BoxPlacement[] = [];
+  const allPlacements: Placement[] = [];
 
   while (currentHeight < container.height) {
     const { count, placements } = findBestLayerArrangement(
