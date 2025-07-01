@@ -22,7 +22,7 @@ export function VisualizationModal({ isOpen, onClose, result, boxDimensions, con
           <h2 className="text-xl font-bold text-gray-800">3D Container Visualization</h2>
           <button
             onClick={onClose}
-            className="text-gray-500 hover:text-gray-700"
+            className="text-gray-500 hover:text-gray-700 p-2 rounded-md hover:bg-gray-100"
           >
             <X className="w-6 h-6" />
           </button>

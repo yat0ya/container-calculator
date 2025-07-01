@@ -28,7 +28,7 @@ export function CalculationResults({ result, onVisualize, container }: Calculati
         </button>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div>
           <h3 className="text-sm font-medium text-gray-600 mb-1">Total Capacity</h3>
           <p className={`text-3xl font-bold ${isWeightRestricted ? 'text-red-600' : 'text-blue-600'}`}>
@@ -50,7 +50,7 @@ export function CalculationResults({ result, onVisualize, container }: Calculati
         )}
         
         {result.totalValue !== undefined && (
-          <div className="md:col-span-2 mt-2">
+          <div>
             <h3 className="text-sm font-medium text-gray-600 mb-1">Total Value</h3>
             <p className="text-3xl font-bold text-blue-600">{result.totalValue.toLocaleString()}</p>
           </div>
