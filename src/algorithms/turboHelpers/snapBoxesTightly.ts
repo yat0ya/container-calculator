@@ -1,4 +1,4 @@
-import { Placement } from '../../types';
+import { Placement } from './types';
 
 export function snapBoxesTightly(placements: Placement[]): void {
   const axes: ('x' | 'y' | 'z')[] = ['x', 'y', 'z'];

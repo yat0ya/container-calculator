@@ -84,6 +84,5 @@ export function patchSmallGaps(
     }
   }
 
-  console.log(`📦 patchSmallGaps placed ${newPlacements.length} boxes`);
   return newPlacements;
 }

@@ -8,10 +8,7 @@ export function finalInsertionSweep(
   const occupied = [...placements];
   const newPlacements: Placement[] = [];
 
-  const minEdge = Math.min(...orientations.flat().filter(x => x > 0));
-  const step = Math.max(5, Math.floor(minEdge / 4)); // conservative, avoid over-sampling
-
-  // Estimate where the repeated wall ends
+  // Estimate end of repeated wall
   const xCounts = new Map<number, number>();
   for (const p of placements) {
     const x = p.position.x;
@@ -39,8 +36,14 @@ export function finalInsertionSweep(
       z + w > p.position.z
     );
 
-  for (let y = 0; y + step <= container.height; y += step) {
-    for (let x = wallEndX; x + step <= container.length; x += step) {
+  // Adaptive step: half of the smallest dimension among all boxes
+  const minDim = Math.min(...orientations.flat().filter(v => v > 0));
+  const step = Math.max(2, Math.floor(minDim / 2));
+
+  orientations.sort((a, b) => (a[0] * a[1] * a[2]) - (b[0] * b[1] * b[2])); // small first
+
+  for (let x = wallEndX; x + step <= container.length; x += step) {
+    for (let y = 0; y + step <= container.height; y += step) {
       for (let z = 0; z + step <= container.width; z += step) {
         for (const [l, h, w] of orientations) {
           if (

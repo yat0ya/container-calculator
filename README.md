@@ -1,6 +1,6 @@
 # Container Calculator
 
-[Live Version](http://tos21.tcn.toya.pl:8080/container-calculator/)
+[Live Version](https://tos21.tcn.toya.pl/calculator/)
 
 ## Description
 
