@@ -21,10 +21,9 @@ export function fillTailArea(
   container: Container,
   orientations: [number, number, number][]
 ): Placement[] {
-  const MIN_GRID = 20; // mm
-  const MAX_GRID = 100; // mm
+  // Use precise grid size based on smallest box dimension
   const minBoxEdge = Math.min(...orientations.flat().filter(x => x > 0));
-  const GRID_SIZE = Math.min(MAX_GRID, Math.max(MIN_GRID, minBoxEdge));
+  const GRID_SIZE = Math.max(5, Math.min(50, Math.floor(minBoxEdge / 4))); // Adaptive grid: 5-50mm
 
   const placements: Placement[] = [];
   const occupied: Placement[] = [];
@@ -37,45 +36,54 @@ export function fillTailArea(
     (a, b) => (b[0] * b[1] * b[2]) - (a[0] * a[1] * a[2])
   );
 
-  const snap = (v: number) => Math.round(v / GRID_SIZE) * GRID_SIZE;
-
   function canPlace(
     x: number, y: number, z: number,
     l: number, h: number, w: number,
     occupiedCheck: Placement[] = occupied
   ): boolean {
+    // Precise boundary checks (no epsilon needed in mm)
     if (
       x + l > container.length ||
       y + h > container.height ||
       z + w > container.width
     ) return false;
 
+    // Must be in tail area
     if (x < tail.startX) return false;
 
-    for (let zi = z; zi < z + w; zi += GRID_SIZE) {
-      for (let yi = y; yi < y + h; yi += GRID_SIZE) {
-        const key = `${yi},${zi}`;
+    // Check height clearance using precise grid sampling
+    const zStep = Math.max(1, Math.floor(GRID_SIZE / 2));
+    const yStep = Math.max(1, Math.floor(GRID_SIZE / 2));
+    
+    for (let zi = z; zi < z + w; zi += zStep) {
+      for (let yi = y; yi < y + h; yi += yStep) {
+        // Use precise grid coordinates for heightMap lookup
+        const gridY = Math.floor(yi / 10) * 10; // heightMap uses 10mm grid
+        const gridZ = Math.floor(zi / 10) * 10;
+        const key = `${gridY},${gridZ}`;
         const clearance = tail.heightMap.get(key) || 0;
         if (x < tail.startX + clearance) return false;
       }
     }
 
+    // Check overlap with existing boxes
     const newPlacement: Placement = {
-      position: { x: snap(x), y: snap(y), z: snap(z) },
+      position: { x, y, z },
       rotation: [l, h, w]
     };
 
     return !occupiedCheck.some(p => boxesOverlap(newPlacement, p));
   }
 
-  // Step 1: Fill known gaps first
+  // Step 1: Fill known gaps with precise positioning
   for (const gap of tail.gaps) {
     for (const [l, h, w] of sortedOrients) {
       if (l <= gap.length && h <= gap.height && w <= gap.width) {
+        // Use precise gap coordinates
         const pos = {
-          x: snap(gap.x),
-          y: snap(gap.y),
-          z: snap(gap.z)
+          x: gap.x,
+          y: gap.y,
+          z: gap.z
         };
         if (canPlace(pos.x, pos.y, pos.z, l, h, w)) {
           const placement: Placement = {
@@ -90,30 +98,32 @@ export function fillTailArea(
     }
   }
 
-  // Step 2: Fill tail area from back to wall
+  // Step 2: Systematic fill from back to front with adaptive stepping
   const candidateYs = new Set<number>([0]);
 
-  for (let x = container.length - GRID_SIZE; x >= tail.startX; x -= GRID_SIZE) {
-    for (let z = 0; z < container.width; z += GRID_SIZE) {
-      for (const y of Array.from(candidateYs).sort((a, b) => a - b)) {
-        const snapped = { x: snap(x), y: snap(y), z: snap(z) };
+  // Use adaptive step size based on smallest box dimension
+  const stepSize = Math.max(1, Math.floor(minBoxEdge / 8));
 
+  for (let x = container.length - stepSize; x >= tail.startX; x -= stepSize) {
+    for (let z = 0; z < container.width; z += stepSize) {
+      for (const y of Array.from(candidateYs).sort((a, b) => a - b)) {
         let bestPlacement: Placement | null = null;
         let bestCount = -1;
 
         for (const [l, h, w] of sortedOrients) {
-          if (!canPlace(snapped.x, snapped.y, snapped.z, l, h, w)) continue;
+          if (!canPlace(x, y, z, l, h, w)) continue;
 
-          let simX = snapped.x;
+          // Simulate forward repetition to find best orientation
+          let simX = x;
           let count = 0;
           const tempOccupied = occupied.slice();
 
           while (
             simX >= tail.startX &&
-            canPlace(simX, snapped.y, snapped.z, l, h, w, tempOccupied)
+            canPlace(simX, y, z, l, h, w, tempOccupied)
           ) {
             tempOccupied.push({
-              position: { x: simX, y: snapped.y, z: snapped.z },
+              position: { x: simX, y, z },
               rotation: [l, h, w]
             });
             count++;
@@ -123,7 +133,7 @@ export function fillTailArea(
           if (count > bestCount) {
             bestCount = count;
             bestPlacement = {
-              position: snapped,
+              position: { x, y, z },
               rotation: [l, h, w]
             };
           }
@@ -132,7 +142,8 @@ export function fillTailArea(
         if (bestPlacement) {
           placements.push(bestPlacement);
           occupied.push(bestPlacement);
-          candidateYs.add(snap(bestPlacement.position.y + bestPlacement.rotation[1]));
+          // Add next Y level candidate
+          candidateYs.add(bestPlacement.position.y + bestPlacement.rotation[1]);
         }
       }
     }

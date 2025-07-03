@@ -8,14 +8,14 @@ export function finalInsertionSweep(
   const occupied = [...placements];
   const newPlacements: Placement[] = [];
 
-  // Estimate end of repeated wall
-  const xCounts = new Map<number, number>();
+  // Detect wall end using precise placement analysis
+  const xPositions = new Map<number, number>();
   for (const p of placements) {
     const x = p.position.x;
-    xCounts.set(x, (xCounts.get(x) || 0) + 1);
+    xPositions.set(x, (xPositions.get(x) || 0) + 1);
   }
 
-  const wallAlignedXs = Array.from(xCounts.entries())
+  const wallAlignedXs = Array.from(xPositions.entries())
     .filter(([, count]) => count > 1)
     .map(([x]) => x)
     .sort((a, b) => a - b);
@@ -36,16 +36,21 @@ export function finalInsertionSweep(
       z + w > p.position.z
     );
 
-  // Adaptive step: half of the smallest dimension among all boxes
+  // Adaptive step size based on smallest box dimension
   const minDim = Math.min(...orientations.flat().filter(v => v > 0));
-  const step = Math.max(2, Math.floor(minDim / 2));
+  const step = Math.max(1, Math.floor(minDim / 8)); // Finer stepping for precision
 
-  orientations.sort((a, b) => (a[0] * a[1] * a[2]) - (b[0] * b[1] * b[2])); // small first
+  // Sort orientations by volume (smallest first for gap filling)
+  const sortedOrients = orientations.sort((a, b) => 
+    (a[0] * a[1] * a[2]) - (b[0] * b[1] * b[2])
+  );
 
+  // Sweep from wall end to container end
   for (let x = wallEndX; x + step <= container.length; x += step) {
     for (let y = 0; y + step <= container.height; y += step) {
       for (let z = 0; z + step <= container.width; z += step) {
-        for (const [l, h, w] of orientations) {
+        for (const [l, h, w] of sortedOrients) {
+          // Precise boundary checks
           if (
             x + l <= container.length &&
             y + h <= container.height &&
@@ -55,7 +60,7 @@ export function finalInsertionSweep(
             const placement: Placement = { position: { x, y, z }, rotation: [l, h, w] };
             occupied.push(placement);
             newPlacements.push(placement);
-            break;
+            break; // Found placement, move to next position
           }
         }
       }
