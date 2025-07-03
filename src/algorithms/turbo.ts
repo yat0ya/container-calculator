@@ -19,63 +19,67 @@ export function turboAlgorithm(box: BoxDimensions, container: Container): Calcul
 
   const start = performance.now();
   let prev = start;
+  const timings: { stage: string; time: number; newBoxes: number }[] = [];
+  let previousBoxCount = 0;
 
-  const logTime = (label: string) => {
+  const logStage = (stage: string, currentPlacements: number) => {
     const now = performance.now();
-    const duration = Math.round(now - prev);
-    console.log(`⏱️ ${label}: ${duration} ms`);
+    const time = Math.round(now - prev);
+    const newBoxes = currentPlacements - previousBoxCount;
+    timings.push({ stage, time, newBoxes });
+    previousBoxCount = currentPlacements;
     prev = now;
   };
 
   // ─── Stage 1: Preprocessing ──────────────────────────────
   const boxInMillimeters = convertToMillimeters(box);
   const orientations = generateOrientations(boxInMillimeters);
-  logTime('Stage 1: Preprocessing');
+  logStage('Stage 1: Preprocessing', 0);
 
   // ─── Stage 2: Build Initial Wall ─────────────────────────
   const initialWall = buildWall(container, orientations);
-  logTime('Stage 2: Build Initial Wall');
+  logStage('Stage 2: Build Initial Wall', initialWall.length);
 
   // ─── Stage 3: Repeat Wall Along Container ────────────────
   const repeated = repeatPattern(initialWall, container);
-  logTime('Stage 3: Repeat Wall Along Container');
+  logStage('Stage 3: Repeat Wall Along Container', repeated.length);
 
   // ─── Stage 4: Vertical Sorting for Layering ──────────────
   const sortedVertically = sortLinesVertically(repeated);
-  logTime('Stage 4: Vertical Sorting for Layering');
+  logStage('Stage 4: Vertical Sorting for Layering', sortedVertically.length);
 
   // ─── Stage 5: Prepare Tail Area ────────────────────────────
   const sortedPlacements = sortForTailArea(sortedVertically);
   const tailArea = prepareTailArea(sortedPlacements, container);
-  logTime('Stage 5: Prepare Tail Area');
+  logStage('Stage 5: Prepare Tail Area', sortedVertically.length);
 
   // ─── Stage 6: Fill Tail Area ───────────────────────────────
   const filledTail = fillTailArea(tailArea, container, orientations);
-  logTime('Stage 6: Fill Tail Area');
+  logStage('Stage 6: Fill Tail Area', sortedVertically.length + filledTail.length);
 
   // ─── Stage 7: Post-placement Compaction ──────────────────
   const basePlacements = [...sortedVertically, ...filledTail];
   const compacted = alignBoxesAnalytically(snapBoxesTightly(basePlacements));
-  logTime('Stage 7: Post-placement Compaction');
+  logStage('Stage 7: Post-placement Compaction', compacted.length);
 
   // ─── Stage 8: Analytical Layering ────────────────────────
   const analyticalLayers = addAnalyticalLayers(compacted, container);
   const withLayers = [...compacted, ...analyticalLayers];
-  logTime('Stage 8: Analytical Layering');
+  logStage('Stage 8: Analytical Layering', withLayers.length);
 
   // ─── Stage 9: Patch Small Gaps ───────────────────────────
   const patched = patchSmallGaps(withLayers, container, orientations);
   const withPatches = [...withLayers, ...patched];
-  logTime('Stage 9: Patch Small Gaps');
+  logStage('Stage 9: Patch Small Gaps', withPatches.length);
 
   // ─── Stage 10: Final Insertion Sweep ─────────────────────
   const finalInserted = finalInsertionSweep(withPatches, container, orientations);
   const withFinalInsert = [...withPatches, ...finalInserted];
-  logTime('Stage 10: Final Insertion Sweep');
+  logStage('Stage 10: Final Insertion Sweep', withFinalInsert.length);
 
   // ─── Stage 11: Final Compaction ──────────────────────────
   const compactedFinal = alignBoxesAnalytically(snapBoxesTightly(withFinalInsert));
-  logTime('Stage 11: Final Compaction');
+  logStage('Stage 11: Final Compaction', compactedFinal.length);
 
   // ─── Cleanup: Remove Boxes Still Outside Container ────────
   const cleaned = compactedFinal.filter(p => {
@@ -96,7 +100,6 @@ export function turboAlgorithm(box: BoxDimensions, container: Container): Calcul
     console.warn(`🧹 Removed ${removedCount} box(es) that exceeded container boundaries`);
   }
 
-  // ─── Check All Boxes Are Within Container Bounds ──────────
   const outOfBounds = cleaned.filter(p => {
     const endX = p.position.x + p.rotation[0];
     const endY = p.position.y + p.rotation[1];
@@ -123,9 +126,10 @@ export function turboAlgorithm(box: BoxDimensions, container: Container): Calcul
 
   // ─── Stage 12: Final Validation ──────────────────────────
   const validPlacements = removeOverlappingBoxes(cleaned);
-  logTime('Stage 12: Final Validation');
+  logStage('Stage 12: Final Validation', validPlacements.length);
 
   const totalDuration = Math.round(performance.now() - start);
+  console.table(timings);
   console.log(`🏁 Total time: ${totalDuration} ms`);
 
   return {
