@@ -1,27 +1,29 @@
 import { Placement } from './types';
 
-export function snapBoxesTightly(placements: Placement[]): void {
+export function snapBoxesTightly(placements: Placement[]): Placement[] {
   const axes: ('x' | 'y' | 'z')[] = ['x', 'y', 'z'];
+  let updatedPlacements = [...placements];
 
   for (const axis of axes) {
-    // Sort placements by position along the current axis for efficient processing
-    placements.sort((a, b) => a.position[axis] - b.position[axis]);
+    // Sort for current axis without mutating original
+    updatedPlacements = [...updatedPlacements].sort(
+      (a, b) => a.position[axis] - b.position[axis]
+    );
 
-    for (let i = 0; i < placements.length; i++) {
-      const box = placements[i];
+    const newPlacements: Placement[] = [];
+
+    for (let i = 0; i < updatedPlacements.length; i++) {
+      const box = updatedPlacements[i];
       let maxEndBefore = 0;
 
-      // Check all previous boxes for potential support/blocking
       for (let j = 0; j < i; j++) {
-        const other = placements[j];
+        const other = newPlacements[j];
 
-        // Get the two orthogonal axes
         const [a1, a2] = axes.filter(a => a !== axis);
         const axisIndex = axes.indexOf(axis);
         const a1Index = axes.indexOf(a1);
         const a2Index = axes.indexOf(a2);
 
-        // Calculate overlap in orthogonal dimensions
         const boxA1Min = box.position[a1];
         const boxA1Max = boxA1Min + box.rotation[a1Index];
         const otherA1Min = other.position[a1];
@@ -32,7 +34,6 @@ export function snapBoxesTightly(placements: Placement[]): void {
         const otherA2Min = other.position[a2];
         const otherA2Max = otherA2Min + other.rotation[a2Index];
 
-        // Precise overlap detection (no epsilon needed in mm)
         const overlapsInOtherAxes =
           boxA1Min < otherA1Max && boxA1Max > otherA1Min &&
           boxA2Min < otherA2Max && boxA2Max > otherA2Min;
@@ -43,8 +44,20 @@ export function snapBoxesTightly(placements: Placement[]): void {
         }
       }
 
-      // Snap to the nearest valid position along the axis
-      box.position[axis] = maxEndBefore;
+      // Return a new placement with updated position
+      const snappedBox: Placement = {
+        ...box,
+        position: {
+          ...box.position,
+          [axis]: maxEndBefore
+        }
+      };
+
+      newPlacements.push(snappedBox);
     }
+
+    updatedPlacements = newPlacements;
   }
+
+  return updatedPlacements;
 }

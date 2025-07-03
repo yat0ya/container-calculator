@@ -3,7 +3,7 @@ import { Placement } from './types';
 type Axis = 'x' | 'y' | 'z';
 type AxisIndex = 0 | 1 | 2;
 
-export function alignBoxesAnalytically(placements: Placement[]): void {
+export function alignBoxesAnalytically(placements: Placement[]): Placement[] {
   const axes: Axis[] = ['x', 'y', 'z'];
 
   // Detect wall end using precise placement density analysis
@@ -20,14 +20,20 @@ export function alignBoxesAnalytically(placements: Placement[]): void {
 
   const wallEndX = wallAlignedXs.length ? wallAlignedXs[wallAlignedXs.length - 1] : 0;
 
-  // Only align boxes in the tail area (beyond the wall)
-  const tailBoxes = placements.filter(p => p.position.x >= wallEndX);
+  let updatedPlacements = placements;
 
   for (const axis of axes) {
     const axisIndex = axisToIndex(axis);
     const [orth1, orth2] = getOtherAxes(axis);
 
-    for (const box of tailBoxes) {
+    const placementMap = new Map<Placement, Placement>();
+
+    for (const box of updatedPlacements) {
+      if (box.position.x < wallEndX) {
+        placementMap.set(box, box); // No change needed
+        continue;
+      }
+
       const pos = box.position[axis];
       const base1 = box.position[orth1];
       const size1 = box.rotation[axisToIndex(orth1)];
@@ -36,12 +42,11 @@ export function alignBoxesAnalytically(placements: Placement[]): void {
 
       let maxSnap = 0;
 
-      for (const other of placements) {
+      for (const other of updatedPlacements) {
         if (other === box) continue;
 
         const otherEnd = other.position[axis] + other.rotation[axisIndex];
 
-        // Precise overlap detection (no epsilon needed in mm)
         const overlapsOrth1 =
           base1 < other.position[orth1] + other.rotation[axisToIndex(orth1)] &&
           base1 + size1 > other.position[orth1];
@@ -50,16 +55,26 @@ export function alignBoxesAnalytically(placements: Placement[]): void {
           base2 < other.position[orth2] + other.rotation[axisToIndex(orth2)] &&
           base2 + size2 > other.position[orth2];
 
-        // Only snap to boxes that provide support and are positioned before this box
         if (overlapsOrth1 && overlapsOrth2 && otherEnd <= pos) {
           maxSnap = Math.max(maxSnap, otherEnd);
         }
       }
 
-      // Apply precise alignment
-      box.position[axis] = maxSnap;
+      // Create new placement with updated axis position
+      placementMap.set(box, {
+        ...box,
+        position: {
+          ...box.position,
+          [axis]: maxSnap
+        }
+      });
     }
+
+    // Apply all updates
+    updatedPlacements = updatedPlacements.map(p => placementMap.get(p)!);
   }
+
+  return updatedPlacements;
 }
 
 function axisToIndex(axis: Axis): AxisIndex {

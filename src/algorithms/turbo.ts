@@ -54,35 +54,31 @@ export function turboAlgorithm(box: BoxDimensions, container: Container): Calcul
   logTime('Stage 6: Fill Tail Area');
 
   // ─── Stage 7: Post-placement Compaction ──────────────────
-  let allPlacements = [...sortedVertically, ...filledTail];
-  snapBoxesTightly(allPlacements);
-  alignBoxesAnalytically(allPlacements);
+  const basePlacements = [...sortedVertically, ...filledTail];
+  const compacted = alignBoxesAnalytically(snapBoxesTightly(basePlacements));
   logTime('Stage 7: Post-placement Compaction');
 
   // ─── Stage 8: Analytical Layering ────────────────────────
-  const analyticalLayers = addAnalyticalLayers(allPlacements, container);
-  allPlacements.push(...analyticalLayers);
+  const analyticalLayers = addAnalyticalLayers(compacted, container);
+  const withLayers = [...compacted, ...analyticalLayers];
   logTime('Stage 8: Analytical Layering');
 
   // ─── Stage 9: Patch Small Gaps ───────────────────────────
-  const patched = patchSmallGaps(allPlacements, container, orientations);
-  allPlacements.push(...patched);
+  const patched = patchSmallGaps(withLayers, container, orientations);
+  const withPatches = [...withLayers, ...patched];
   logTime('Stage 9: Patch Small Gaps');
 
   // ─── Stage 10: Final Insertion Sweep ─────────────────────
-  const finalInserted = finalInsertionSweep(allPlacements, container, orientations);
-  allPlacements.push(...finalInserted);
+  const finalInserted = finalInsertionSweep(withPatches, container, orientations);
+  const withFinalInsert = [...withPatches, ...finalInserted];
   logTime('Stage 10: Final Insertion Sweep');
 
   // ─── Stage 11: Final Compaction ──────────────────────────
-  snapBoxesTightly(allPlacements);
-  alignBoxesAnalytically(allPlacements);
+  const compactedFinal = alignBoxesAnalytically(snapBoxesTightly(withFinalInsert));
   logTime('Stage 11: Final Compaction');
 
   // ─── Cleanup: Remove Boxes Still Outside Container ────────
-  const beforeCleanup = allPlacements.length;
-
-  allPlacements = allPlacements.filter(p => {
+  const cleaned = compactedFinal.filter(p => {
     const endX = p.position.x + p.rotation[0];
     const endY = p.position.y + p.rotation[1];
     const endZ = p.position.z + p.rotation[2];
@@ -95,14 +91,13 @@ export function turboAlgorithm(box: BoxDimensions, container: Container): Calcul
     );
   });
 
-  const removedCount = beforeCleanup - allPlacements.length;
-
+  const removedCount = compactedFinal.length - cleaned.length;
   if (removedCount > 0) {
     console.warn(`🧹 Removed ${removedCount} box(es) that exceeded container boundaries`);
   }
 
   // ─── Check All Boxes Are Within Container Bounds ──────────
-  const outOfBounds = allPlacements.filter(p => {
+  const outOfBounds = cleaned.filter(p => {
     const endX = p.position.x + p.rotation[0];
     const endY = p.position.y + p.rotation[1];
     const endZ = p.position.z + p.rotation[2];
@@ -127,7 +122,7 @@ export function turboAlgorithm(box: BoxDimensions, container: Container): Calcul
   }
 
   // ─── Stage 12: Final Validation ──────────────────────────
-  const validPlacements = removeOverlappingBoxes(allPlacements);
+  const validPlacements = removeOverlappingBoxes(cleaned);
   logTime('Stage 12: Final Validation');
 
   const totalDuration = Math.round(performance.now() - start);

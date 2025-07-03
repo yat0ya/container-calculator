@@ -5,7 +5,7 @@ import { boxesOverlap } from '../turboHelpers/utils';
  * Builds a support map indicating which boxes are stacked on top of others.
  */
 function buildSupportMap(placements: Placement[]): Map<Placement, Placement[]> {
-  const supportMap = new Map<Placement, Placement[]>();
+  const supportPairs: [Placement, Placement][] = [];
 
   for (const base of placements) {
     const baseTopY = base.position.y + base.rotation[1];
@@ -13,7 +13,6 @@ function buildSupportMap(placements: Placement[]): Map<Placement, Placement[]> {
     for (const box of placements) {
       if (box === base) continue;
 
-      // Precise alignment check (no epsilon needed in mm)
       const alignedAbove =
         box.position.y === baseTopY &&
         box.position.x >= base.position.x &&
@@ -22,12 +21,15 @@ function buildSupportMap(placements: Placement[]): Map<Placement, Placement[]> {
         box.position.z < base.position.z + base.rotation[2];
 
       if (alignedAbove) {
-        if (!supportMap.has(base)) {
-          supportMap.set(base, []);
-        }
-        supportMap.get(base)!.push(box);
+        supportPairs.push([base, box]);
       }
     }
+  }
+
+  const supportMap = new Map<Placement, Placement[]>();
+  for (const [base, box] of supportPairs) {
+    const existing = supportMap.get(base) || [];
+    supportMap.set(base, [...existing, box]);
   }
 
   return supportMap;
@@ -51,22 +53,20 @@ function gatherDependentBoxes(
 }
 
 /**
- * Iteratively removes overlapping boxes and their dependent stack.
- * Uses precise millimeter-based overlap detection.
+ * Removes overlapping boxes and their dependent stack using precise overlap detection.
  */
 export function removeOverlappingBoxes(placements: Placement[]): Placement[] {
-  const remaining = new Set(placements);
+  let remaining = new Set(placements);
   const supportMap = buildSupportMap(placements);
 
   let iterationCount = 0;
-  const maxIterations = placements.length; // Prevent infinite loops
+  const maxIterations = placements.length;
 
   while (iterationCount < maxIterations) {
     const current = Array.from(remaining);
     const overlapCount = new Map<Placement, number>();
     let anyOverlap = false;
 
-    // Check all pairs for overlaps
     for (let i = 0; i < current.length; i++) {
       for (let j = i + 1; j < current.length; j++) {
         const a = current[i];
@@ -81,21 +81,16 @@ export function removeOverlappingBoxes(placements: Placement[]): Placement[] {
 
     if (!anyOverlap) break;
 
-    // Find the box causing the most overlaps
     const sortedOverlaps = Array.from(overlapCount.entries())
       .sort(([, countA], [, countB]) => countB - countA);
-    
-    if (sortedOverlaps.length === 0) break;
-    
-    const [worstBox] = sortedOverlaps[0];
 
-    // Remove the worst box and all boxes that depend on it
+    if (sortedOverlaps.length === 0) break;
+
+    const [worstBox] = sortedOverlaps[0];
     const toRemove = new Set<Placement>();
     gatherDependentBoxes(worstBox, supportMap, toRemove);
-    
-    for (const box of toRemove) {
-      remaining.delete(box);
-    }
+
+    remaining = new Set(Array.from(remaining).filter(p => !toRemove.has(p)));
 
     iterationCount++;
   }

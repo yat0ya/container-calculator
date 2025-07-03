@@ -5,12 +5,13 @@ export function finalInsertionSweep(
   container: Container,
   orientations: [number, number, number][]
 ): Placement[] {
-  const occupied = [...placements];
+  const existing = [...placements];
+  let occupied = [...existing];
   const newPlacements: Placement[] = [];
 
   // Detect wall end using precise placement analysis
   const xPositions = new Map<number, number>();
-  for (const p of placements) {
+  for (const p of existing) {
     const x = p.position.x;
     xPositions.set(x, (xPositions.get(x) || 0) + 1);
   }
@@ -21,7 +22,6 @@ export function finalInsertionSweep(
     .sort((a, b) => a - b);
 
   const wallEndX = wallAlignedXs.length ? wallAlignedXs[wallAlignedXs.length - 1] : 0;
-
   const tailLength = container.length - wallEndX;
   const minBoxLength = Math.min(...orientations.map(o => o[0]));
   if (tailLength < minBoxLength) return [];
@@ -36,21 +36,17 @@ export function finalInsertionSweep(
       z + w > p.position.z
     );
 
-  // Adaptive step size based on smallest box dimension
   const minDim = Math.min(...orientations.flat().filter(v => v > 0));
-  const step = Math.max(1, Math.floor(minDim / 8)); // Finer stepping for precision
+  const step = Math.max(1, Math.floor(minDim / 8));
 
-  // Sort orientations by volume (smallest first for gap filling)
-  const sortedOrients = orientations.sort((a, b) => 
-    (a[0] * a[1] * a[2]) - (b[0] * b[1] * b[2])
-  );
+  const sortedOrients = orientations
+    .slice()
+    .sort((a, b) => (a[0] * a[1] * a[2]) - (b[0] * b[1] * b[2]));
 
-  // Sweep from wall end to container end
   for (let x = wallEndX; x + step <= container.length; x += step) {
     for (let y = 0; y + step <= container.height; y += step) {
       for (let z = 0; z + step <= container.width; z += step) {
         for (const [l, h, w] of sortedOrients) {
-          // Precise boundary checks
           if (
             x + l <= container.length &&
             y + h <= container.height &&
@@ -58,9 +54,9 @@ export function finalInsertionSweep(
             doesNotOverlap(x, y, z, l, h, w)
           ) {
             const placement: Placement = { position: { x, y, z }, rotation: [l, h, w] };
-            occupied.push(placement);
             newPlacements.push(placement);
-            break; // Found placement, move to next position
+            occupied = [...occupied, placement]; // immutable add
+            break;
           }
         }
       }
