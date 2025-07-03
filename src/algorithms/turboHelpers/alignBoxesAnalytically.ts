@@ -6,7 +6,7 @@ type AxisIndex = 0 | 1 | 2;
 export function alignBoxesAnalytically(placements: Placement[]): void {
   const axes: Axis[] = ['x', 'y', 'z'];
 
-  // Estimate where the repeated wall ends
+  // Detect wall end using precise placement density analysis
   const xCounts = new Map<number, number>();
   for (const p of placements) {
     const x = p.position.x;
@@ -20,7 +20,7 @@ export function alignBoxesAnalytically(placements: Placement[]): void {
 
   const wallEndX = wallAlignedXs.length ? wallAlignedXs[wallAlignedXs.length - 1] : 0;
 
-  // Only align boxes in the tail
+  // Only align boxes in the tail area (beyond the wall)
   const tailBoxes = placements.filter(p => p.position.x >= wallEndX);
 
   for (const axis of axes) {
@@ -41,6 +41,7 @@ export function alignBoxesAnalytically(placements: Placement[]): void {
 
         const otherEnd = other.position[axis] + other.rotation[axisIndex];
 
+        // Precise overlap detection (no epsilon needed in mm)
         const overlapsOrth1 =
           base1 < other.position[orth1] + other.rotation[axisToIndex(orth1)] &&
           base1 + size1 > other.position[orth1];
@@ -49,11 +50,13 @@ export function alignBoxesAnalytically(placements: Placement[]): void {
           base2 < other.position[orth2] + other.rotation[axisToIndex(orth2)] &&
           base2 + size2 > other.position[orth2];
 
+        // Only snap to boxes that provide support and are positioned before this box
         if (overlapsOrth1 && overlapsOrth2 && otherEnd <= pos) {
           maxSnap = Math.max(maxSnap, otherEnd);
         }
       }
 
+      // Apply precise alignment
       box.position[axis] = maxSnap;
     }
   }

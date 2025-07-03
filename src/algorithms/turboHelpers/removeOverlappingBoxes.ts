@@ -13,6 +13,7 @@ function buildSupportMap(placements: Placement[]): Map<Placement, Placement[]> {
     for (const box of placements) {
       if (box === base) continue;
 
+      // Precise alignment check (no epsilon needed in mm)
       const alignedAbove =
         box.position.y === baseTopY &&
         box.position.x >= base.position.x &&
@@ -51,16 +52,21 @@ function gatherDependentBoxes(
 
 /**
  * Iteratively removes overlapping boxes and their dependent stack.
+ * Uses precise millimeter-based overlap detection.
  */
 export function removeOverlappingBoxes(placements: Placement[]): Placement[] {
   const remaining = new Set(placements);
   const supportMap = buildSupportMap(placements);
 
-  while (true) {
+  let iterationCount = 0;
+  const maxIterations = placements.length; // Prevent infinite loops
+
+  while (iterationCount < maxIterations) {
     const current = Array.from(remaining);
     const overlapCount = new Map<Placement, number>();
     let anyOverlap = false;
 
+    // Check all pairs for overlaps
     for (let i = 0; i < current.length; i++) {
       for (let j = i + 1; j < current.length; j++) {
         const a = current[i];
@@ -75,16 +81,23 @@ export function removeOverlappingBoxes(placements: Placement[]): Placement[] {
 
     if (!anyOverlap) break;
 
-    // Pick the box causing the most overlaps
-    const [worstBox] = Array.from(overlapCount.entries())
-      .sort(([, countA], [, countB]) => countB - countA)[0];
+    // Find the box causing the most overlaps
+    const sortedOverlaps = Array.from(overlapCount.entries())
+      .sort(([, countA], [, countB]) => countB - countA);
+    
+    if (sortedOverlaps.length === 0) break;
+    
+    const [worstBox] = sortedOverlaps[0];
 
-    // Remove it and all boxes that depend on it
+    // Remove the worst box and all boxes that depend on it
     const toRemove = new Set<Placement>();
     gatherDependentBoxes(worstBox, supportMap, toRemove);
+    
     for (const box of toRemove) {
       remaining.delete(box);
     }
+
+    iterationCount++;
   }
 
   return Array.from(remaining);
