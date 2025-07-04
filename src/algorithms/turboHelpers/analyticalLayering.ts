@@ -9,38 +9,29 @@ export function addAnalyticalLayers(
   placements: Placement[],
   container: Container,
 ): Placement[] {
-  const newPlacements: Placement[] = [];
-  const allPlacements = [...placements];
+  let newPlacements: Placement[] = [];
+  let allPlacements = [...placements];
 
   // Find the bottom layer (y = 0)
   let currentLayer = placements.filter(p => p.position.y === 0);
-  if (currentLayer.length === 0) return newPlacements;
+  if (currentLayer.length === 0) return [];
 
   const dominantRotation = findDominantRotation(currentLayer);
   const layerHeight = dominantRotation[1];
   let currentY = layerHeight;
 
   while (currentY + layerHeight <= container.height) {
-    const nextLayer = createLayer(currentLayer, dominantRotation, currentY, container, allPlacements);
+    const nextLayer = createLayer(currentLayer, dominantRotation, currentY, container);
 
     if (nextLayer.length === 0) break;
 
-    for (const newBox of nextLayer) {
-      let hasOverlap = false;
-      for (const existing of allPlacements) {
-        if (boxesOverlap(newBox, existing)) {
-          hasOverlap = true;
-          break;
-        }
-      }
+    const filtered: Placement[] = nextLayer.filter((newBox: Placement) =>
+      !allPlacements.some(existing => boxesOverlap(newBox, existing))
+    );
 
-      if (!hasOverlap) {
-        newPlacements.push(newBox);
-        allPlacements.push(newBox);
-      }
-    }
-
-    currentLayer = nextLayer;
+    newPlacements = [...newPlacements, ...filtered];
+    allPlacements = [...allPlacements, ...filtered];
+    currentLayer = filtered;
     currentY += layerHeight;
   }
 
@@ -51,7 +42,7 @@ export function addAnalyticalLayers(
  * Finds the most common rotation pattern in a layer of boxes.
  */
 function findDominantRotation(boxes: Placement[]): [number, number, number] {
-  const rotationCounts = new Map<string, { rotation: [number, number, number], count: number }>();
+  const rotationCounts = new Map<string, { rotation: [number, number, number]; count: number }>();
 
   for (const box of boxes) {
     const key = `${box.rotation[0]}-${box.rotation[1]}-${box.rotation[2]}`;
@@ -80,14 +71,11 @@ function findDominantRotation(boxes: Placement[]): [number, number, number] {
  */
 function createLayer(
   previousLayer: Placement[],
-  _dominantRotation: [number, number, number], // unused now
+  _dominantRotation: [number, number, number],
   layerY: number,
-  container: Container,
-  existingPlacements: Placement[]
+  container: Container
 ): Placement[] {
-  const layerBoxes: Placement[] = [];
-
-  for (const belowBox of previousLayer) {
+  return previousLayer.flatMap(belowBox => {
     const rotation = belowBox.rotation;
     const boxArea = rotation[0] * rotation[2];
 
@@ -102,22 +90,15 @@ function createLayer(
 
     const supportArea = calculateSupportArea(newBox, previousLayer);
 
-    if (supportArea >= boxArea * 0.8) {
-      if (
-        newBox.position.x + rotation[0] <= container.length &&
-        newBox.position.y + rotation[1] <= container.height &&
-        newBox.position.z + rotation[2] <= container.width
-      ) {
-        layerBoxes.push(newBox);
-      }
-    }
-  }
+    const hasSupport = supportArea >= boxArea * 0.8;
+    const fitsWithinContainer =
+      newBox.position.x + rotation[0] <= container.length &&
+      newBox.position.y + rotation[1] <= container.height &&
+      newBox.position.z + rotation[2] <= container.width;
 
-  return layerBoxes;
+    return hasSupport && fitsWithinContainer ? [newBox] : [];
+  });
 }
-
-
-
 
 /**
  * Calculates how much support area is available for a box position.

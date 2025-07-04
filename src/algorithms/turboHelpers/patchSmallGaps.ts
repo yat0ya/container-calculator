@@ -13,9 +13,6 @@ export function patchSmallGaps(
   // Adaptive grid based on smallest box dimension
   const minBoxDim = Math.min(...orientations.flat().filter(x => x > 0));
   const GRID = Math.max(2, Math.min(20, Math.floor(minBoxDim / 10))); // 2-20mm adaptive grid
-  
-  const newPlacements: Placement[] = [];
-  const all = [...existing];
 
   // Detect start of tail based on placement density analysis
   const xDensity = new Map<number, number>();
@@ -38,16 +35,14 @@ export function patchSmallGaps(
   // Build precise top surface map
   const topSurfaces = new Map<string, number>();
 
-  for (const p of all) {
+  for (const p of existing) {
     const topY = p.position.y + p.rotation[1];
-    
-    // Use precise box boundaries
+
     const xStart = p.position.x;
     const xEnd = p.position.x + p.rotation[0];
     const zStart = p.position.z;
     const zEnd = p.position.z + p.rotation[2];
 
-    // Grid sample the box surface
     for (let x = xStart; x < xEnd; x += GRID) {
       if (x < tailStartX) continue;
 
@@ -59,19 +54,20 @@ export function patchSmallGaps(
     }
   }
 
-  // Sort orientations by volume (largest first for better space utilization)
-  const sortedOrients = validOrients.sort((a, b) => 
+  // Sort orientations by volume (largest first)
+  const sortedOrients = validOrients.sort((a, b) =>
     (b[0] * b[1] * b[2]) - (a[0] * a[1] * a[2])
   );
 
-  // Attempt placement at each surface position
+  const newPlacements: Placement[] = [];
+  const combinedPlacements = [...existing]; // temp reference list for overlap checking
+
   for (const [key, y] of topSurfaces.entries()) {
     const [x, z] = key.split(',').map(Number);
 
     for (const [l, h, w] of sortedOrients) {
       const pos = { x, y, z };
 
-      // Precise boundary checks
       if (
         pos.x + l > container.length ||
         pos.y + h > container.height ||
@@ -83,20 +79,19 @@ export function patchSmallGaps(
         rotation: [l, h, w]
       };
 
-      // Check for overlaps with existing boxes
-      if (!all.some(p => boxesOverlap(newBox, p))) {
+      if (!combinedPlacements.some(p => boxesOverlap(newBox, p))) {
         newPlacements.push(newBox);
-        all.push(newBox);
-        
-        // Update surface map for stacking
+        combinedPlacements.push(newBox); // only internal mutable reference
+
+        // Update surface map
         for (let xi = pos.x; xi < pos.x + l; xi += GRID) {
           for (let zi = pos.z; zi < pos.z + w; zi += GRID) {
             const surfaceKey = `${Math.floor(xi / GRID) * GRID},${Math.floor(zi / GRID) * GRID}`;
             topSurfaces.set(surfaceKey, pos.y + h);
           }
         }
-        
-        break; // Found placement, try next position
+
+        break; // Found a valid placement
       }
     }
   }

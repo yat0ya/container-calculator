@@ -1,5 +1,5 @@
 import { Container, Placement } from './types';
-import { boxesOverlap } from './utils'; // updated import path
+import { boxesOverlap } from './utils';
 
 export function buildWall(container: Container, orientations: [number, number, number][]): Placement[] {
   const allOrientations: [number, number, number][] = Array.from(
@@ -13,21 +13,22 @@ export function buildWall(container: Container, orientations: [number, number, n
     )
   ).map(s => JSON.parse(s) as [number, number, number]);
 
-  const TIME_LIMIT = 1000; // ms
   const MAX_DEPTH = 30;
-  const start = Date.now();
   const memo = new Set<string>();
   let best: [number, number, number][] = [];
 
   const scoreLayout = (layout: [number, number, number][]) =>
-    layout.reduce((sum, [, h, w]) => sum + h * w, 0); // mm² coverage
+    layout.reduce((sum, [, h, w]) => sum + h * w, 0);
 
   function layoutKey(layout: [number, number, number][]) {
     return layout.map(([, h, w]) => `${h}x${w}`).join('|');
   }
 
+  const MAX_LAYOUTS = 50000; // Cap to prevent memory overflow
+
   function backtrack(layout: [number, number, number][], widthLeft: number, depth: number) {
-    if (Date.now() - start > TIME_LIMIT || depth > MAX_DEPTH) return;
+    if (depth > MAX_DEPTH || memo.size > MAX_LAYOUTS) return;
+
     const key = layoutKey(layout);
     if (memo.has(key)) return;
     memo.add(key);
@@ -46,58 +47,41 @@ export function buildWall(container: Container, orientations: [number, number, n
   backtrack([], container.width, 0);
   if (!best.length) return [];
 
-  const rotationCounts = new Map<string, number>();
-  for (const rot of best) {
-    const key = JSON.stringify(rot);
-    rotationCounts.set(key, (rotationCounts.get(key) || 0) + 1);
-  }
-
   const sortedLayout = best.slice().sort((a, b) => {
-    const countA = rotationCounts.get(JSON.stringify(a)) || 0;
-    const countB = rotationCounts.get(JSON.stringify(b)) || 0;
-    return countB - countA;
+    const countMap = new Map<string, number>();
+    for (const rot of best) {
+      const key = JSON.stringify(rot);
+      countMap.set(key, (countMap.get(key) || 0) + 1);
+    }
+    return (countMap.get(JSON.stringify(b)) || 0) - (countMap.get(JSON.stringify(a)) || 0);
   });
 
-  const placements: Placement[] = [];
+  let placements: Placement[] = [];
   let z = 0;
 
   for (const box of sortedLayout) {
     const w = box[2];
     const column = findBestStack(allOrientations, container.height, w);
-    const localCounts = new Map<string, number>();
-
-    for (const rot of column) {
-      const key = JSON.stringify(rot);
-      localCounts.set(key, (localCounts.get(key) || 0) + 1);
-    }
-
-    const sortedColumn = column.slice().sort((a, b) => {
-      const countA = localCounts.get(JSON.stringify(a)) || 0;
-      const countB = localCounts.get(JSON.stringify(b)) || 0;
-      return countA - countB;
-    }).reverse();
 
     let y = 0;
-    for (const [l2, h2, w2] of sortedColumn) {
+    const columnPlacements: Placement[] = [];
+
+    for (const [l2, h2, w2] of column) {
       const newPlacement: Placement = {
         position: { x: 0, y, z },
-        rotation: [l2, h2, w2] as [number, number, number]
+        rotation: [l2, h2, w2]
       };
 
-      let hasOverlap = false;
-      for (const existing of placements) {
-        if (boxesOverlap(newPlacement, existing)) {
-          hasOverlap = true;
-          break;
-        }
-      }
+      const hasOverlap = placements.some(existing => boxesOverlap(newPlacement, existing)) ||
+                         columnPlacements.some(existing => boxesOverlap(newPlacement, existing));
 
       if (!hasOverlap) {
-        placements.push(newPlacement);
+        columnPlacements.push(newPlacement);
         y += h2;
       }
     }
 
+    placements = [...placements, ...columnPlacements];
     z += w;
   }
 
