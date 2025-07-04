@@ -1,10 +1,8 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
-// https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   if (mode === 'turbo-only') {
-    // Special build mode for extracting just the turbo algorithm
     return {
       plugins: [react()],
       build: {
@@ -25,9 +23,8 @@ export default defineConfig(({ mode }) => {
     };
   }
 
-  // Normal build configuration
   return {
-    base: "/",
+    base: './', // 👈 makes asset paths relative
     plugins: [react()],
     optimizeDeps: {
       exclude: ["lucide-react"],
@@ -35,7 +32,6 @@ export default defineConfig(({ mode }) => {
     build: {
       rollupOptions: {
         output: {
-          // Create a separate chunk for the turbo algorithm
           manualChunks: (id) => {
             if (id.includes('src/algorithms/turbo')) {
               return 'turbo-algorithm';
