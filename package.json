@@ -1,19 +1,22 @@
 {
   "name": "vite-react-typescript-starter",
   "private": true,
-  "version": "1.1.0",
+  "version": "1.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build --base=./",
+    "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "process": "node scripts/processExcel.js",
+    "build-turbo": "vite build --mode turbo-only",
+    "process": "npm run build-turbo && node scripts/processExcel.mjs",
+    "process-fast": "node scripts/processExcel.mjs",
     "test": "jest"
   },
   "dependencies": {
     "@react-three/drei": "^9.99.7",
     "@react-three/fiber": "^8.15.19",
+    "exceljs": "^4.4.0",
     "lucide-react": "^0.344.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

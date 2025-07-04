@@ -15,7 +15,7 @@ import { addAnalyticalLayers } from './turboHelpers/analyticalLayering';
 import { sortForTailArea } from './turboHelpers/utils';
 
 export function turboAlgorithm(box: BoxDimensions, container: Container): CalculationResult {
-  console.log('🚀 Starting Turbo Algorithm');
+  // console.log('🚀 Starting Turbo Algorithm');
 
   const start = performance.now();
   let prev = start;
@@ -129,8 +129,8 @@ export function turboAlgorithm(box: BoxDimensions, container: Container): Calcul
   logStage('Stage 12: Final Validation', validPlacements.length);
 
   const totalDuration = Math.round(performance.now() - start);
-  console.table(timings);
-  console.log(`🏁 Total time: ${totalDuration} ms`);
+  // console.table(timings);
+  // console.log(`🏁 Total time: ${totalDuration} ms`);
 
   return {
     totalBoxes: validPlacements.length,

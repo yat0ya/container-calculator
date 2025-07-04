@@ -13,9 +13,7 @@ export function buildWall(container: Container, orientations: [number, number, n
     )
   ).map(s => JSON.parse(s) as [number, number, number]);
 
-  const TIME_LIMIT = 1000;
   const MAX_DEPTH = 30;
-  const start = Date.now();
   const memo = new Set<string>();
   let best: [number, number, number][] = [];
 
@@ -26,8 +24,11 @@ export function buildWall(container: Container, orientations: [number, number, n
     return layout.map(([, h, w]) => `${h}x${w}`).join('|');
   }
 
+  const MAX_LAYOUTS = 50000; // Cap to prevent memory overflow
+
   function backtrack(layout: [number, number, number][], widthLeft: number, depth: number) {
-    if (Date.now() - start > TIME_LIMIT || depth > MAX_DEPTH) return;
+    if (depth > MAX_DEPTH || memo.size > MAX_LAYOUTS) return;
+
     const key = layoutKey(layout);
     if (memo.has(key)) return;
     memo.add(key);
