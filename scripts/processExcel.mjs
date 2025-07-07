@@ -65,6 +65,35 @@ function calculateBoxesInContainer(boxData, container, qty) {
   }
 }
 
+function getToyaTurboSimulationValue(containerType, k20Value, k40Value, k40HCValue) {
+  // Handle K40HC_AND exception - return empty/null
+  if (containerType === 'K40HC_AND') {
+    return null;
+  }
+  
+  // Map container types to their corresponding values
+  switch (containerType) {
+    case 'K20':
+      return k20Value;
+    case 'K40':
+      return k40Value;
+    case 'K40HC':
+      return k40HCValue;
+    default:
+      return null;
+  }
+}
+
+function calculatePercentageDifference(simulationValue, originalValue) {
+  if (simulationValue === null || simulationValue === undefined || 
+      originalValue === null || originalValue === undefined || originalValue === 0) {
+    return null;
+  }
+  
+  const difference = ((simulationValue - originalValue) / originalValue) * 100;
+  return Math.round(difference * 100) / 100; // Round to 2 decimal places
+}
+
 function ensureOutputDirectory() {
   const dir = 'output';
   if (!existsSync(dir)) {
@@ -101,7 +130,7 @@ async function processExcelFile() {
     // Setup header
     const header = ws.getRow(1);
     const baseCols = header.cellCount;
-    ['Toya Turbo K20', 'Toya Turbo K40', 'Toya Turbo K40HC']
+    ['Toya Turbo K20', 'Toya Turbo K40', 'Toya Turbo K40HC', 'Toya Turbo ilość zamówienia', 'Różnica [%]']
       .forEach((h, idx) => {
         const c = header.getCell(baseCols + 1 + idx);
         c.value = h;
@@ -121,13 +150,15 @@ async function processExcelFile() {
     // Custom number format
     const numFmt = '_-* # ##0_-;-* # ##0_-;_-* "-"??_-;_-@_-';
 
-    // for (let r = startRow; r <= endRow; r++) {
-    for (let r = 5; r <= 9; r++) {
+    for (let r = startRow; r <= endRow; r++) {
+    // for (let r = 5; r <= 9; r++) {
       processed++;
       const row = ws.getRow(r);
       const vals = row.values;
       const len = Number(vals[10]), wid = Number(vals[11]);
       const hei = Number(vals[12]), wgt = Number(vals[13]), qty = Number(vals[14]);
+      const containerType = vals[3]; // Column C
+      const originalValue = Number(vals[4]); // Column D
 
       const elapsed = Math.round((Date.now() - startTime) / 1000);
       const remaining = processed > 1
@@ -136,6 +167,7 @@ async function processExcelFile() {
 
       console.log(`📍 Row ${processed}/${totalRows} (Excel row ${r}), time passed: ${elapsed}s, remaining: ${remaining}`);
       console.log(`  Reading: J${r}=${len}, K${r}=${wid}, L${r}=${hei}, M${r}=${wgt}, N${r}=${qty}`);
+      console.log(`  Container type (C${r}): ${containerType}, Original value (D${r}): ${originalValue}`);
 
       if ([len, wid, hei, wgt, qty].some(n => isNaN(n)) || qty <= 0 || len < 10 || wid < 10 || hei < 10) {
         console.log('  ❌ Invalid or too small data – skipping\n');
@@ -151,23 +183,65 @@ async function processExcelFile() {
         calculateBoxesInContainer(box, containers.K40HC, qty),
       ];
 
-     results.forEach((res, idx) => {
-  const cell = row.getCell(baseCols + 1 + idx);
+      // Set the turbo algorithm results (columns O, P, Q)
+      results.forEach((res, idx) => {
+        const cell = row.getCell(baseCols + 1 + idx);
 
-  // 🔁 Step 1: Fully clear any inherited styles
-  cell.style = {}; // clears font, fill, border, alignment, etc.
+        // 🔁 Step 1: Fully clear any inherited styles
+        cell.style = {}; // clears font, fill, border, alignment, etc.
 
-  // 🔧 Step 2: Set value and number format
-  cell.value = res.totalBoxes;
-  cell.numFmt = numFmt;
+        // 🔧 Step 2: Set value and number format
+        cell.value = res.totalBoxes;
+        cell.numFmt = numFmt;
 
-  // 🎯 Step 3: Apply bold red font only to restricted cells
-  if (res.isWeightRestricted) {
-    cell.font = { bold: true, color: { argb: 'FFFF0000' } };
-    console.log(`  🔴 Marked weight-restricted at ${cell.address}`);
-  }
-});
+        // 🎯 Step 3: Apply bold red font only to restricted cells
+        if (res.isWeightRestricted) {
+          cell.font = { bold: true, color: { argb: 'FFFF0000' } };
+          console.log(`  🔴 Marked weight-restricted at ${cell.address}`);
+        }
+      });
 
+      // Calculate and set 'Toya Turbo ilość zamówienia' value (column R)
+      const simulationValue = getToyaTurboSimulationValue(
+        containerType,
+        results[0].totalBoxes, // K20
+        results[1].totalBoxes, // K40
+        results[2].totalBoxes  // K40HC
+      );
+      
+      const simulationCell = row.getCell(baseCols + 4); // Column R
+      simulationCell.style = {};
+      if (simulationValue !== null) {
+        simulationCell.value = simulationValue;
+        simulationCell.numFmt = numFmt;
+        console.log(`  📊 Simulation value for ${containerType}: ${simulationValue}`);
+      } else {
+        simulationCell.value = '';
+        console.log(`  📊 Simulation value for ${containerType}: empty (exception or unknown type)`);
+      }
+
+      // Calculate and set percentage difference (column S)
+      const percentageDiff = calculatePercentageDifference(simulationValue, originalValue);
+      const diffCell = row.getCell(baseCols + 5); // Column S
+      diffCell.style = {};
+      
+      if (percentageDiff !== null) {
+        diffCell.value = `${percentageDiff > 0 ? '+' : ''}${percentageDiff}%`;
+        
+        // Color coding: green if simulation is higher, red if lower
+        if (percentageDiff > 0) {
+          diffCell.font = { color: { argb: 'FF008000' } }; // Green
+          console.log(`  📈 Difference: +${percentageDiff}% (higher - green)`);
+        } else if (percentageDiff < 0) {
+          diffCell.font = { color: { argb: 'FFFF0000' } }; // Red
+          console.log(`  📉 Difference: ${percentageDiff}% (lower - red)`);
+        } else {
+          console.log(`  📊 Difference: ${percentageDiff}% (equal)`);
+        }
+      } else {
+        diffCell.value = '';
+        console.log(`  📊 Difference: empty (no simulation value or invalid original value)`);
+      }
 
 
       row.commit();
