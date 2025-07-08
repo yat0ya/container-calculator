@@ -12,6 +12,21 @@ export function CalculationResults({ result, onVisualize, container }: Calculati
   const isWeightRestricted = result.maxPossibleBoxes !== undefined && 
     result.totalBoxes < result.maxPossibleBoxes;
 
+  // Calculate Volume Utilization
+  const calculateVolumeUtilization = (): number => {
+    if (!result.boxInMeters || result.totalBoxes === 0 || !container.volume) return 0;
+    
+    // Box volume in cubic meters (boxInMeters is already in meters)
+    const boxVolumeM3 = result.boxInMeters.length * result.boxInMeters.width * result.boxInMeters.height;
+    const totalBoxVolume = boxVolumeM3 * result.totalBoxes;
+    
+    // Container volume is already in cubic meters from JSON
+    const containerVolume = container.volume;
+    
+    return (totalBoxVolume / containerVolume) * 100;
+  };
+
+  const volumeUtilization = calculateVolumeUtilization();
   return (
     <div className="bg-blue-50 rounded-lg p-6">
       <div className="flex items-center justify-between mb-4">
@@ -28,7 +43,7 @@ export function CalculationResults({ result, onVisualize, container }: Calculati
         </button>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div>
           <h3 className="text-sm font-medium text-gray-600 mb-1">Total Capacity</h3>
           <p className={`text-3xl font-bold ${isWeightRestricted ? 'text-red-600' : 'text-blue-600'}`}>
@@ -37,6 +52,13 @@ export function CalculationResults({ result, onVisualize, container }: Calculati
           {isWeightRestricted && result.maxPossibleBoxes && (
             <p className="text-sm text-gray-500">Max without weight limit: {result.maxPossibleBoxes} boxes</p>
           )}
+        </div>
+        
+        <div>
+          <h3 className="text-sm font-medium text-gray-600 mb-1">Volume Utilization</h3>
+          <p className="text-3xl font-bold text-blue-600">
+            {volumeUtilization.toFixed(1)}%
+          </p>
         </div>
         
         {result.totalWeight !== undefined && (

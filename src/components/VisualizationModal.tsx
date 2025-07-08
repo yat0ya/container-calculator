@@ -37,8 +37,8 @@ export function VisualizationModal({ isOpen, onClose, result, boxDimensions, con
         </div>
 
         <div className="bg-gray-50 p-4 rounded-b-xl border-t">
-          <h3 className="text-lg font-semibold text-gray-700 mb-2">Container Specifications</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-y-2 sm:gap-4">
+          <h3 className="text-lg font-semibold text-gray-700 mb-2">Summary</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-y-2 sm:gap-4">
             <div>
               <p className="text-base font-medium text-gray-600 mb-0.5">Box Dimensions</p>
               <p className="text-lg text-gray-800">
@@ -55,6 +55,24 @@ export function VisualizationModal({ isOpen, onClose, result, boxDimensions, con
               <p className="text-base font-medium text-gray-600 mb-0.5">Total Capacity</p>
               <p className="text-lg text-gray-800">
                 {result.totalBoxes} boxes
+              </p>
+            </div>
+            <div>
+              <p className="text-base font-medium text-gray-600 mb-0.5">Volume Utilization</p>
+              <p className="text-lg text-gray-800">
+                {(() => {
+                  if (!result.boxInMeters || result.totalBoxes === 0 || !container.volume) return '0.0%';
+                  
+                  // Box volume in cubic meters (boxInMeters is already in meters)
+                  const boxVolumeM3 = result.boxInMeters.length * result.boxInMeters.width * result.boxInMeters.height;
+                  const totalBoxVolume = boxVolumeM3 * result.totalBoxes;
+                  
+                  // Container volume is already in cubic meters from JSON
+                  const containerVolume = container.volume;
+                  
+                  const volumeUtilization = (totalBoxVolume / containerVolume) * 100;
+                  return `${volumeUtilization.toFixed(1)}%`;
+                })()}
               </p>
             </div>
           </div>

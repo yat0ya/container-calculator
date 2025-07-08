@@ -15,6 +15,7 @@ export interface Container {
   width: number;  // in mm
   height: number; // in mm
   maxLoad: number; // in kg
+  volume: number; // in cubic meters
 }
 
 export interface Placement {
