@@ -136,9 +136,9 @@ export function turboAlgorithm(box: BoxDimensions, container: Container): Calcul
     totalBoxes: validPlacements.length,
     placements: validPlacements,
     boxInMeters: {
-      length: box.length / 10,
-      width: box.width / 10,
-      height: box.height / 10,
+      length: box.length / 100,
+      width: box.width / 100,
+      height: box.height / 100,
       weight: box.weight,
       value: box.value
     }
