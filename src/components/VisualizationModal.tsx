@@ -40,25 +40,25 @@ export function VisualizationModal({ isOpen, onClose, result, boxDimensions, con
           <h3 className="text-lg font-semibold text-gray-700 mb-2">Summary</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-y-2 sm:gap-4">
             <div>
-              <p className="text-base font-medium text-gray-600 mb-0.5">Box Dimensions</p>
+              <p className="text-base font-medium text-gray-600 mb-0.5">Box Dimensions [cm×cm×cm]</p>
               <p className="text-lg text-gray-800">
-                {boxDimensions.length} × {boxDimensions.width} × {boxDimensions.height} cm
+                {boxDimensions.length} × {boxDimensions.width} × {boxDimensions.height}
               </p>
             </div>
             <div>
-              <p className="text-base font-medium text-gray-600 mb-0.5">Container Dimensions</p>
+              <p className="text-base font-medium text-gray-600 mb-0.5">Container Dimensions [m×m×m]</p>
               <p className="text-lg text-gray-800">
                 {(container.length / 1000).toFixed(2)} × {(container.width / 1000).toFixed(2)} × {(container.height / 1000).toFixed(2)} m
               </p>
             </div>
             <div>
-              <p className="text-base font-medium text-gray-600 mb-0.5">Total Capacity</p>
+              <p className="text-base font-medium text-gray-600 mb-0.5">Total Capacity [boxes]</p>
               <p className="text-lg text-gray-800">
-                {result.totalBoxes} boxes
+                {result.totalBoxes}
               </p>
             </div>
             <div>
-              <p className="text-base font-medium text-gray-600 mb-0.5">Volume Utilization</p>
+              <p className="text-base font-medium text-gray-600 mb-0.5">Volume Utilization [%]</p>
               <p className="text-lg text-gray-800">
                 {(() => {
                   if (!result.boxInMeters || result.totalBoxes === 0 || !container.volume) return '0.0%';
@@ -71,7 +71,7 @@ export function VisualizationModal({ isOpen, onClose, result, boxDimensions, con
                   const containerVolume = container.volume;
                   
                   const volumeUtilization = (totalBoxVolume / containerVolume) * 100;
-                  return `${volumeUtilization.toFixed(1)}%`;
+                  return `${volumeUtilization.toFixed(1)}`;
                 })()}
               </p>
             </div>

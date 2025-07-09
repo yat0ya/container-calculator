@@ -1,5 +1,5 @@
 import { Package, Eye } from 'lucide-react';
-import { Algorithm, CalculationResult, Container } from '../types';
+import { Algorithm, CalculationResult, Container } from '../algorithms/turboHelpers/types';
 
 interface CalculationResultsProps {
   result: CalculationResult;
@@ -45,36 +45,35 @@ export function CalculationResults({ result, onVisualize, container }: Calculati
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div>
-          <h3 className="text-sm font-medium text-gray-600 mb-1">Total Capacity</h3>
+          <h3 className="text-sm font-medium text-gray-600 mb-1">Total Capacity [boxes]</h3>
           <p className={`text-3xl font-bold ${isWeightRestricted ? 'text-red-600' : 'text-blue-600'}`}>
-            {result.totalBoxes} boxes
-          </p>
+            {result.totalBoxes}</p>
           {isWeightRestricted && result.maxPossibleBoxes && (
-            <p className="text-sm text-gray-500">Max without weight limit: {result.maxPossibleBoxes} boxes</p>
+            <p className="text-sm text-gray-500">Max without weight limit: {result.maxPossibleBoxes}</p>
           )}
         </div>
         
         <div>
-          <h3 className="text-sm font-medium text-gray-600 mb-1">Volume Utilization</h3>
+          <h3 className="text-sm font-medium text-gray-600 mb-1">Volume Utilization[%]</h3>
           <p className="text-3xl font-bold text-blue-600">
-            {volumeUtilization.toFixed(1)}%
+            {volumeUtilization.toFixed(1)}
           </p>
         </div>
         
         {result.totalWeight !== undefined && (
           <div>
-            <h3 className="text-sm font-medium text-gray-600 mb-1">Total Weight</h3>
+            <h3 className="text-sm font-medium text-gray-600 mb-1">Total Weight [kg]</h3>
             <p className={`text-3xl font-bold ${isWeightRestricted ? 'text-red-600' : 'text-blue-600'}`}>
-              {Math.round(result.totalWeight)} kg
+              {Math.round(result.totalWeight)}
             </p>
-            <p className="text-sm text-gray-500">Max: {container.maxLoad} kg</p>
+            <p className="text-sm text-gray-500">Max: {container.maxLoad}</p>
           </div>
         )}
         
         {result.totalValue !== undefined && (
           <div>
             <h3 className="text-sm font-medium text-gray-600 mb-1">Total Value</h3>
-            <p className="text-3xl font-bold text-blue-600">{result.totalValue.toLocaleString()}</p>
+            <p className="text-3xl font-bold text-blue-600">{result.totalValue}</p>
           </div>
         )}
       </div>
