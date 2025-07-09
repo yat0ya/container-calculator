@@ -2,7 +2,7 @@ import { Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { X } from 'lucide-react';
 import { Scene } from './Scene';
-import { BoxDimensions, CalculationResult, Container } from '../types';
+import { BoxDimensions, CalculationResult, Container } from '../algorithms/turboHelpers/types';
 
 interface VisualizationModalProps {
   isOpen: boolean;
