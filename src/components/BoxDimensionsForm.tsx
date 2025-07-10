@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Calculator, Loader2, Server } from 'lucide-react';
-import { Algorithm, BoxDimensions, Container } from '../algorithms/turboHelpers/types'; // ✅ updated
-import { ALGORITHMS, CONTAINERS } from '../algorithms/turboHelpers/constants'; // ✅ updated
+import { Algorithm, BoxDimensions, Container } from '../algorithms/turboHelpers/types';
+import { ALGORITHMS, CONTAINERS } from '../algorithms/turboHelpers/constants';
 import { version } from '../../package.json';
 
 interface BoxDimensionsFormProps {
@@ -27,29 +27,25 @@ export function BoxDimensionsForm({
   onCalculateApi,
   isCalculating
 }: BoxDimensionsFormProps) {
-  // Track which fields have been touched (lost focus) and their validation state
   const [fieldValidation, setFieldValidation] = useState<Record<string, { touched: boolean; isValid: boolean }>>({});
 
-  // Handle blur events to validate and mark fields as touched
   const handleBlur = (fieldName: string, value: number) => {
-    const isValid = !isNaN(value) && value >= 10;
+    const isValid = !isNaN(value) && value > 0;
     setFieldValidation(prev => ({
       ...prev,
       [fieldName]: { touched: true, isValid }
     }));
   };
 
-  // Check if a field should show validation error
   const shouldShowError = (fieldName: string) => {
     const validation = fieldValidation[fieldName];
     return validation?.touched && !validation?.isValid;
   };
 
-  // Check if any dimension is invalid or empty for button disable
   const hasInvalidOrEmptyDimensions = 
-    !boxDimensions.length || boxDimensions.length < 10 ||
-    !boxDimensions.width || boxDimensions.width < 10 ||
-    !boxDimensions.height || boxDimensions.height < 10;
+    !boxDimensions.length || boxDimensions.length <= 0 ||
+    !boxDimensions.width || boxDimensions.width <= 0 ||
+    !boxDimensions.height || boxDimensions.height <= 0;
 
   return (
     <>
@@ -113,14 +109,13 @@ export function BoxDimensionsForm({
               value={boxDimensions.length || ''}
               onChange={onDimensionsChange}
               onBlur={(e) => handleBlur('length', parseFloat(e.target.value))}
-              min="10"
               className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                 shouldShowError('length') ? 'border-red-300 bg-red-50' : 'border-gray-300'
               }`}
             />
             {shouldShowError('length') && (
               <p className="text-red-500 text-xs mt-1">
-                {!boxDimensions.length ? 'This field is required' : 'Minimum value is 10 cm'}
+                {!boxDimensions.length ? 'This field is required' : 'Must be greater than 0'}
               </p>
             )}
           </div>
@@ -132,14 +127,13 @@ export function BoxDimensionsForm({
               value={boxDimensions.width || ''}
               onChange={onDimensionsChange}
               onBlur={(e) => handleBlur('width', parseFloat(e.target.value))}
-              min="10"
               className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                 shouldShowError('width') ? 'border-red-300 bg-red-50' : 'border-gray-300'
               }`}
             />
             {shouldShowError('width') && (
               <p className="text-red-500 text-xs mt-1">
-                {!boxDimensions.width ? 'This field is required' : 'Minimum value is 10 cm'}
+                {!boxDimensions.width ? 'This field is required' : 'Must be greater than 0'}
               </p>
             )}
           </div>
@@ -151,19 +145,18 @@ export function BoxDimensionsForm({
               value={boxDimensions.height || ''}
               onChange={onDimensionsChange}
               onBlur={(e) => handleBlur('height', parseFloat(e.target.value))}
-              min="10"
               className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                 shouldShowError('height') ? 'border-red-300 bg-red-50' : 'border-gray-300'
               }`}
             />
             {shouldShowError('height') && (
               <p className="text-red-500 text-xs mt-1">
-                {!boxDimensions.height ? 'This field is required' : 'Minimum value is 10 cm'}
+                {!boxDimensions.height ? 'This field is required' : 'Must be greater than 0'}
               </p>
             )}
           </div>
         </div>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           <div>
             <label className="block text-sm font-medium text-gray-600 mb-1">Weight (kg, optional)</label>
@@ -203,8 +196,8 @@ export function BoxDimensionsForm({
             {isCalculating ? 'Calculating...' : 'Calculate'}
           </button>
           
-          {/* API Button - Hidden for now, can be re-enabled in future */}
-          {/*
+          {/* API Button - Hidden for now */}
+          {/* 
           <button
             onClick={onCalculateApi}
             disabled={isCalculating || hasInvalidOrEmptyDimensions}

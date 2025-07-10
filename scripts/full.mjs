@@ -73,7 +73,15 @@ async function processRows() {
   const numFmt = '_-* # ##0_-;-* # ##0_-;_-* "-"??_-;_-@_-';
   const parse = v => Number(String(v).replace(',', '.'));
 
-  for (let r = 6; r <= 10; r++) {
+  const checkpointInterval = 1000;
+  let processedCount = 0;
+
+  const startRow = 13623; // 2
+  const endRow = 13624;// ws.rowCount;
+  const totalRows = endRow - startRow + 1;
+  const startTime = Date.now();
+
+  for (let r = startRow; r <= endRow; r++) {
     const row = ws.getRow(r);
     const vals = row.values;
 
@@ -89,8 +97,8 @@ async function processRows() {
     }
 
     const box = { length, width, height, weight };
-    console.log(`📍 Row ${r}`);
-    console.log(`📦 Box: ${length}×${width}×${height} cm, ${weight} kg, qty: ${qty}`);
+    const item = vals[2]; // Column B
+    console.log(`📍 Processing Row ${r}: ${item}, ${length}×${width}×${height} cm, ${weight} kg, qty: ${qty}`);
 
     const results = {
       K20:    calculateBoxesInContainer(box, containers.K20, qty),
@@ -103,29 +111,20 @@ async function processRows() {
       const capCol = colMap[key];
       const flagCol = flagMap[key];
 
-      const capCell = row.getCell(capCol);
-      capCell.value = totalBoxes;
-      capCell.numFmt = numFmt;
-
-      const flagCell = row.getCell(flagCol);
-      flagCell.value = isWeightRestricted ? 'W' : 'O';
+      row.getCell(capCol).value = totalBoxes;
+      row.getCell(capCol).numFmt = numFmt;
+      row.getCell(flagCol).value = isWeightRestricted ? 'W' : 'O';
     }
 
-    // Best unrestricted container (excluding K45HC)
     const candidateKeys = ['K20', 'K40', 'K40HC'];
     const unrestricted = candidateKeys
       .filter(k => results[k] && !results[k].isWeightRestricted)
       .sort((a, b) => results[b].totalBoxes - results[a].totalBoxes);
 
     const bestContainer = unrestricted[0] || 'K20';
+    row.getCell(27).value = bestContainer;
+    row.getCell(28).value = results[bestContainer].isWeightRestricted ? 'WAGA' : 'OBJĘTOŚĆ';
 
-    const aaCell = row.getCell(27); // AA
-    aaCell.value = bestContainer;
-
-    const abCell = row.getCell(28); // AB
-    abCell.value = results[bestContainer].isWeightRestricted ? 'W' : 'O';
-
-    // Volume utilization % in AC (29), use raw result before qty multiplication
     const rawResult = turboAlgorithm(box, containers[bestContainer]);
     const rawBoxes = rawResult?.totalBoxes || 0;
 
@@ -134,23 +133,48 @@ async function processRows() {
       width: width / 100,
       height: height / 100
     };
-
     const boxVolumeM3 = boxInMeters.length * boxInMeters.width * boxInMeters.height;
     const totalBoxVolume = boxVolumeM3 * rawBoxes;
     const containerVolume = containers[bestContainer]?.volume ?? 1;
     const utilization = containerVolume > 0 ? (totalBoxVolume / containerVolume) * 100 : 0;
 
-    const acCell = row.getCell(29); // AC
-    acCell.value = Math.round(utilization * 10) / 10;
-    acCell.numFmt = '0.0';
+    row.getCell(29).value = Math.round(utilization * 10) / 10;
+    row.getCell(29).numFmt = '0.0';
 
     row.commit();
+    processedCount++;
+
+    // ⏱ Log elapsed and estimated time every 10 rows
+    if (processedCount % 10 === 0) {
+      const elapsedMs = Date.now() - startTime;
+      const avgTimePerRow = elapsedMs / processedCount;
+      const remainingRows = totalRows - processedCount;
+      const remainingMs = avgTimePerRow * remainingRows;
+
+      const formatTime = ms => {
+        const sec = Math.floor(ms / 1000);
+        const h = String(Math.floor(sec / 3600)).padStart(2, '0');
+        const m = String(Math.floor((sec % 3600) / 60)).padStart(2, '0');
+        const s = String(sec % 60).padStart(2, '0');
+        return `${h}:${m}:${s}`;
+      };
+
+      console.log(`⏱ Elapsed: ${formatTime(elapsedMs)} | Estimated Remaining: ${formatTime(remainingMs)}`);
+    }
+
+    // 💾 Checkpoint
+    if (processedCount % checkpointInterval === 0) {
+      const checkpointPath = join(outputDir, `checkpoint_row${r}.xlsx`);
+      await workbook.xlsx.writeFile(checkpointPath);
+      console.log(`💾 Checkpoint saved at row ${r}: ${checkpointPath}`);
+    }
   }
 
   const outPath = join(outputDir, 'full.xlsx');
   await workbook.xlsx.writeFile(outPath);
-  console.log(`✅ Saved to: ${outPath}`);
+  console.log(`✅ Final output saved to: ${outPath}`);
 }
+
 
 processRows().catch(err => {
   console.error('❌ Error:', err.message);

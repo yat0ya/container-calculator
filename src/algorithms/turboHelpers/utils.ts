@@ -1,4 +1,4 @@
-import { BoxDimensions, Placement } from '../../types';
+import { BoxDimensions, Placement } from './types';
 
 /**
  * Checks if two boxes overlap using integer millimeter coordinates.
@@ -15,14 +15,40 @@ export function boxesOverlap(a: Placement, b: Placement): boolean {
 }
 
 /**
- * Generates all 6 axis-aligned orientations of a box.
+ * Generates unique valid orientations of a box based on dimension equality
+ * and container size constraints.
  */
-export function generateOrientations({ length, width, height }: BoxDimensions): [number, number, number][] {
-  return [
-    [length, width, height], [length, height, width],
-    [width, length, height], [width, height, length],
-    [height, length, width], [height, width, length],
+export function generateOrientations(
+  { length, width, height }: BoxDimensions,
+  container: { length: number; width: number; height: number }
+): [number, number, number][] {
+  const permutations: [number, number, number][] = [
+    [length, width, height],
+    [length, height, width],
+    [width, length, height],
+    [width, height, length],
+    [height, length, width],
+    [height, width, length],
   ];
+
+  const unique = new Set<string>();
+  const valid: [number, number, number][] = [];
+
+  for (const [l, w, h] of permutations) {
+    if (
+      (l > container.length && l > container.width) ||
+      (w > container.length && w > container.width) ||
+      h > container.height
+    ) continue;
+
+    const key = [l, w, h].join('x');
+    if (!unique.has(key)) {
+      unique.add(key);
+      valid.push([l, w, h]);
+    }
+  }
+
+  return valid;
 }
 
 /**

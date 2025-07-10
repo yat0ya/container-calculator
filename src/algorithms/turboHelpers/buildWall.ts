@@ -2,16 +2,7 @@ import { Container, Placement } from './types';
 import { boxesOverlap } from './utils';
 
 export function buildWall(container: Container, orientations: [number, number, number][]): Placement[] {
-  const allOrientations: [number, number, number][] = Array.from(
-    new Set(
-      orientations.flatMap(([l, h, w]) =>
-        [
-          [l, h, w], [l, w, h], [h, l, w],
-          [h, w, l], [w, l, h], [w, h, l],
-        ].map(o => JSON.stringify(o))
-      )
-    )
-  ).map(s => JSON.parse(s) as [number, number, number]);
+  const allOrientations = orientations;
 
   const MAX_DEPTH = 30;
   const memo = new Set<string>();
