@@ -1,8 +1,6 @@
 import { Container, Placement, Gap, TailArea } from './types';
 
 export function prepareTailArea(placements: Placement[], container: Container): TailArea {
-  const GRID_SIZE = 10;
-
   if (placements.length === 0) {
     return {
       startX: 0,
@@ -12,68 +10,84 @@ export function prepareTailArea(placements: Placement[], container: Container): 
     };
   }
 
-  // 1. Extract endX values
-  const endXValues = new Set<number>();
+  // Calculate dynamic grid size based on minimum box dimension
+  const minBoxDim = Math.min(
+    ...placements.flatMap(p => p.rotation).filter(dim => dim > 0)
+  );
+  const effectiveGridSize = Math.max(5, Math.min(50, Math.floor(minBoxDim / 4)));
+
+  // Build density map to find the main packed volume
+  const xDensity = new Map<number, number>();
+  
   for (const p of placements) {
-    endXValues.add(p.position.x + p.rotation[0]);
+    // Use the start position of each box for density calculation
+    const xGrid = Math.floor(p.position.x / effectiveGridSize) * effectiveGridSize;
+    xDensity.set(xGrid, (xDensity.get(xGrid) || 0) + 1);
   }
 
-  const sortedEndXs = Array.from(endXValues).sort((a, b) => b - a);
-  const maxX = sortedEndXs[0] || 0;
-  const secondMaxX = sortedEndXs[1] || 0;
+  // Find the x-grid with maximum density (main packed volume)
+  let maxDensityX = 0;
+  let maxDensity = 0;
+  
+  for (const [xGrid, density] of xDensity.entries()) {
+    if (density > maxDensity) {
+      maxDensity = density;
+      maxDensityX = xGrid;
+    }
+  }
 
-  const countAtMax = placements.filter(p => p.position.x + p.rotation[0] === maxX).length;
-
-  // 2. Decide tailStart
-  const threshold = 0.2 * container.length;
-  const tailStart = (countAtMax <= 2 || (maxX - secondMaxX) > threshold)
-    ? (secondMaxX || maxX)
-    : maxX;
-
-  // 3. Partition placements into wall and tail
-  const tailBoxes = placements.filter(p => p.position.x + p.rotation[0] >= tailStart);
-  const startX = tailStart;
+  // Set startX after the main packed volume
+  const startX = maxDensityX + effectiveGridSize;
   const tailLength = container.length - startX;
 
-  // 4. Initialize heightMap
-  let heightMap = new Map<string, number>();
-  for (let z = 0; z < container.width; z += GRID_SIZE) {
-    for (let y = 0; y < container.height; y += GRID_SIZE) {
-      heightMap.set(`${y},${z}`, 0);
+  // Initialize heightMap for the entire container space
+  const heightMap = new Map<string, number>();
+  
+  // Initialize all grid points to zero
+  for (let x = 0; x < container.length; x += effectiveGridSize) {
+    for (let z = 0; z < container.width; z += effectiveGridSize) {
+      const key = `${x},${z}`;
+      heightMap.set(key, 0);
     }
   }
 
-  // 5. Compute gaps and update heightMap immutably
-  const gaps: Gap[] = [];
-  for (const p of tailBoxes) {
-    const endX = p.position.x + p.rotation[0];
-    const overhang = endX - startX;
+  // Update heightMap with actual top surfaces of ALL placements
+  for (const p of placements) {
+    const topY = p.position.y + p.rotation[1]; // Top surface of the box
+    
+    // Calculate grid coverage for this box
+    const xStart = Math.floor(p.position.x / effectiveGridSize) * effectiveGridSize;
+    const xEnd = Math.ceil((p.position.x + p.rotation[0]) / effectiveGridSize) * effectiveGridSize;
+    const zStart = Math.floor(p.position.z / effectiveGridSize) * effectiveGridSize;
+    const zEnd = Math.ceil((p.position.z + p.rotation[2]) / effectiveGridSize) * effectiveGridSize;
 
-    const zStart = Math.floor(p.position.z / GRID_SIZE) * GRID_SIZE;
-    const zEnd = Math.ceil((p.position.z + p.rotation[2]) / GRID_SIZE) * GRID_SIZE;
-    const yStart = Math.floor(p.position.y / GRID_SIZE) * GRID_SIZE;
-    const yEnd = Math.ceil((p.position.y + p.rotation[1]) / GRID_SIZE) * GRID_SIZE;
-
-    const newEntries: [string, number][] = [];
-
-    for (let z = zStart; z < zEnd && z < container.width; z += GRID_SIZE) {
-      for (let y = yStart; y < yEnd && y < container.height; y += GRID_SIZE) {
-        const key = `${y},${z}`;
-        const current = heightMap.get(key) || 0;
-        newEntries.push([key, Math.max(current, overhang)]);
+    // Update heightMap for all grid points covered by this box
+    for (let x = xStart; x < xEnd && x < container.length; x += effectiveGridSize) {
+      for (let z = zStart; z < zEnd && z < container.width; z += effectiveGridSize) {
+        const key = `${x},${z}`;
+        const currentHeight = heightMap.get(key) || 0;
+        heightMap.set(key, Math.max(currentHeight, topY));
       }
     }
+  }
 
-    heightMap = new Map([...heightMap, ...newEntries]);
+  // Filter tail boxes (only those that extend into or beyond the tail area)
+  const tailBoxes = placements.filter(p => p.position.x + p.rotation[0] > startX);
 
+  // Generate gaps from tail boxes
+  const gaps: Gap[] = [];
+  for (const p of tailBoxes) {
+    // Only create gaps for boxes that have space underneath (y > 0)
     if (p.position.y > 0) {
+      const gapLength = Math.min(p.rotation[0], (p.position.x + p.rotation[0]) - startX);
+      
       gaps.push({
-        x: p.position.x,
+        x: Math.max(p.position.x, startX),
         y: 0,
         z: p.position.z,
         width: p.rotation[2],
         height: p.position.y,
-        length: overhang
+        length: gapLength
       });
     }
   }
