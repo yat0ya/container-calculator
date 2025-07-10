@@ -44,9 +44,18 @@ export function finalInsertionSweep(
     .sort((a, b) => (a[0] * a[1] * a[2]) - (b[0] * b[1] * b[2]));
 
   for (let x = wallEndX; x + step <= container.length; x += step) {
+    // Calculate available length at current x position
+    const availableLength = container.length - x;
+    
+    // Filter orientations that can fit in the available length
+    const validOrients = sortedOrients.filter(([l]) => l <= availableLength);
+    
+    // Skip if no orientations can fit
+    if (validOrients.length === 0) continue;
+
     for (let y = 0; y + step <= container.height; y += step) {
       for (let z = 0; z + step <= container.width; z += step) {
-        for (const [l, h, w] of sortedOrients) {
+        for (const [l, h, w] of validOrients) {
           if (
             x + l <= container.length &&
             y + h <= container.height &&
