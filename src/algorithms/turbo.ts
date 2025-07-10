@@ -33,7 +33,7 @@ export function turboAlgorithm(box: BoxDimensions, container: Container): Calcul
 
   // ─── Stage 1: Preprocessing ──────────────────────────────
   const boxInMillimeters = convertToMillimeters(box);
-  const orientations = generateOrientations(boxInMillimeters);
+  const orientations = generateOrientations(boxInMillimeters, container);
   logStage('Stage 1: Preprocessing', 0);
 
   // ─── Stage 2: Build Initial Wall ─────────────────────────
@@ -120,10 +120,7 @@ export function turboAlgorithm(box: BoxDimensions, container: Container): Calcul
       endY: p.position.y + p.rotation[1],
       endZ: p.position.z + p.rotation[2]
     })));
-  } else {
-    console.log('✅ All boxes fit within container bounds');
-  }
-
+  } 
   // ─── Stage 12: Final Validation ──────────────────────────
   const validPlacements = removeOverlappingBoxes(cleaned);
   logStage('Stage 12: Final Validation', validPlacements.length);

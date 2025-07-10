@@ -1,4 +1,4 @@
-import { Placement, Container } from '../../types';
+import { Placement, Container } from './types';
 
 export function finalInsertionSweep(
   placements: Placement[],

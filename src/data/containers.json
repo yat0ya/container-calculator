@@ -2,38 +2,38 @@
   "containers": [
     {
       "id": "K20",
-      "name": "Kontener 20'",
+      "name": "Container 20'",
       "length": 5900,
       "width": 2340,
       "height": 2390,
-      "maxLoad": 25000,
+      "maxLoad": 19000,
       "volume": 33.02
     },
     {
       "id": "K40",
-      "name": "Kontener 40'",
+      "name": "Container 40'",
       "length": 12030,
       "width": 2340,
       "height": 2390,
-      "maxLoad": 27600,
+      "maxLoad": 20500,
       "volume": 67.31
     },
     {
       "id": "K40HC",
-      "name": "Kontener 40'HC",
+      "name": "Container 40'HC",
       "length": 12030,
       "width": 2340,
       "height": 2700,
-      "maxLoad": 28600,
+      "maxLoad": 20500,
       "volume": 76.00
     },
     {
       "id": "K45HC",
-      "name": "Kontener 45'HC",
+      "name": "Container 45'HC",
       "length": 13550,
       "width": 2340,
       "height": 2700,
-      "maxLoad": 27700,
+      "maxLoad": 19000,
       "volume": 85.64
     }
   ]
