@@ -2,14 +2,11 @@ import React, { useState } from 'react';
 import { BoxDimensionsForm } from './components/BoxDimensionsForm';
 import { CalculationResults } from './components/CalculationResults';
 import { VisualizationModal } from './components/VisualizationModal';
-import { BoxDimensions, Container, CalculationResult } from './types';
-import { basicAlgorithm } from './algorithms/basic';
-import { recursiveAlgorithm } from './algorithms/recursive';
-import { humanLikeAlgorithm } from './algorithms/humanLike';
-import { pluggerAlgorithm } from './algorithms/plugger';
+import { BoxDimensions, Container, CalculationResult, Algorithm } from './types';
 import { turboAlgorithm } from './algorithms/turbo';
-import { DEFAULT_CONTAINER, CONTAINERS } from './algorithms/turboHelpers/constants';
-import { Algorithm } from './types';
+import { CONTAINERS } from './algorithms/turboHelpers/constants';
+
+const DEFAULT_CONTAINER = CONTAINERS[0];
 
 function App() {
   const [boxDimensions, setBoxDimensions] = useState<BoxDimensions>({
@@ -26,28 +23,7 @@ function App() {
   const [isCalculating, setIsCalculating] = useState(false);
 
   const calculateResult = () => {
-    let algorithm;
-    switch (selectedAlgorithm) {
-      case 'turbo':
-        algorithm = turboAlgorithm;
-        break;
-      case 'basic':
-        algorithm = basicAlgorithm;
-        break;
-      case 'humanLike':
-        algorithm = humanLikeAlgorithm;
-        break;
-      case 'plugger':
-        algorithm = pluggerAlgorithm;
-        break;
-      case 'recursive':
-        algorithm = recursiveAlgorithm;
-        break;
-      default:
-        algorithm = pluggerAlgorithm;
-    }
-    
-    const newResult = algorithm(boxDimensions, selectedContainer);
+    const newResult = turboAlgorithm(boxDimensions, selectedContainer);
     
     if (boxDimensions.weight !== undefined) {
       newResult.totalWeight = newResult.totalBoxes * boxDimensions.weight;
@@ -108,13 +84,13 @@ function App() {
   };
 
   const handleAlgorithmChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setSelectedAlgorithm(e.target.value as Algorithm);
+    // Only 'turbo' is available now, but keep the handler for consistency
     setResult(null);
   };
 
   const handleContainerChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const containerId = e.target.value;
-    const container = CONTAINERS.find(c => c.id === containerId) || DEFAULT_CONTAINER;
+    const container = CONTAINERS.find(c => c.id === containerId) || CONTAINERS[0];
     setSelectedContainer(container);
     setResult(null);
   };

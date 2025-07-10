@@ -1,8 +1,16 @@
 import React, { useState } from 'react';
 import { Calculator, Loader2, Server } from 'lucide-react';
 import { Algorithm, BoxDimensions, Container } from '../algorithms/turboHelpers/types';
-import { ALGORITHMS, CONTAINERS } from '../algorithms/turboHelpers/constants';
+import { CONTAINERS } from '../algorithms/turboHelpers/constants';
 import { version } from '../../package.json';
+
+const ALGORITHMS = [
+  {
+    id: 'turbo',
+    name: 'Toya Turbo',
+    description: 'Advanced packing algorithm with millimeter precision and multi-stage optimization',
+  }
+];
 
 interface BoxDimensionsFormProps {
   boxDimensions: BoxDimensions;
@@ -81,21 +89,17 @@ export function BoxDimensionsForm({
           <select
             value={selectedAlgorithm}
             onChange={onAlgorithmChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50"
+            disabled
           >
             {ALGORITHMS.map(algorithm => (
-              <option 
-                key={algorithm.id} 
-                value={algorithm.id}
-                disabled={algorithm.id !== 'turbo'}
-                className={algorithm.id !== 'turbo' ? 'text-gray-400' : ''}
-              >
+              <option key={algorithm.id} value={algorithm.id}>
                 {algorithm.name}
               </option>
             ))}
           </select>
           <p className="mt-2 text-sm text-gray-600">
-            {ALGORITHMS.find(a => a.id === selectedAlgorithm)?.description}
+            {ALGORITHMS[0].description}
           </p>
         </div>
 

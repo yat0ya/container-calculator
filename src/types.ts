@@ -1,6 +1,6 @@
 // types.ts
 
-export type Algorithm = 'turbo' | 'basic' | 'humanLike' | 'plugger' | 'recursive';
+export type Algorithm = 'turbo';
 
 export interface BoxDimensions {
   length: number; // in cm before conversion

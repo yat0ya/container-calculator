@@ -85,12 +85,21 @@ export function fillTailArea(
 
   // Step 2: Sweep fill from back to front
   for (let x = container.length - stepSize; x >= tail.startX; x -= stepSize) {
+    // Calculate available length at current x position
+    const availableLength = container.length - x;
+    
+    // Filter orientations that can fit in the available length
+    const validOrients = sortedOrients.filter(([l]) => l <= availableLength);
+    
+    // Skip if no orientations can fit
+    if (validOrients.length === 0) continue;
+
     for (let z = 0; z < container.width; z += stepSize) {
       for (const y of Array.from(candidateYs).sort((a, b) => a - b)) {
         let bestPlacement: Placement | null = null;
         let bestCount = -1;
 
-        for (const [l, h, w] of sortedOrients) {
+        for (const [l, h, w] of validOrients) {
           if (!canPlace(x, y, z, l, h, w, occupied)) continue;
 
           let simX = x;
