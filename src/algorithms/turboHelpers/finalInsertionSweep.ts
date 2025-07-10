@@ -26,6 +26,10 @@ export function finalInsertionSweep(
   const minBoxLength = Math.min(...orientations.map(o => o[0]));
   if (tailLength < minBoxLength) return [];
 
+  // Calculate minimum box dimensions across all orientations for early exit conditions
+  const minBoxHeight = Math.min(...orientations.map(o => o[1])); // height is always index 1
+  const minBoxWidth = Math.min(...orientations.map(o => o[2]));  // width is always index 2
+
   const doesNotOverlap = (x: number, y: number, z: number, l: number, h: number, w: number) =>
     !occupied.some(p =>
       x < p.position.x + p.rotation[0] &&
@@ -39,9 +43,10 @@ export function finalInsertionSweep(
   const minDim = Math.min(...orientations.flat().filter(v => v > 0));
   const step = Math.max(1, Math.floor(minDim / 8));
 
+  // Sort orientations by volume (largest first) for better space utilization
   const sortedOrients = orientations
     .slice()
-    .sort((a, b) => (a[0] * a[1] * a[2]) - (b[0] * b[1] * b[2]));
+    .sort((a, b) => (b[0] * b[1] * b[2]) - (a[0] * a[1] * a[2]));
 
   for (let x = wallEndX; x + step <= container.length; x += step) {
     // Calculate available length at current x position
@@ -54,7 +59,13 @@ export function finalInsertionSweep(
     if (validOrients.length === 0) continue;
 
     for (let y = 0; y + step <= container.height; y += step) {
+      // Early exit: if remaining height is less than minimum box height, skip
+      if (y + minBoxHeight > container.height) break;
+
       for (let z = 0; z + step <= container.width; z += step) {
+        // Early exit: if remaining width is less than minimum box width, skip
+        if (z + minBoxWidth > container.width) break;
+
         for (const [l, h, w] of validOrients) {
           if (
             x + l <= container.length &&

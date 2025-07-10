@@ -66,16 +66,17 @@ export function turboAlgorithm(box: BoxDimensions, container: Container): Calcul
   const analyticalLayers = addAnalyticalLayers(compacted, container);
   const withLayers = [...compacted, ...analyticalLayers];
   logStage('Stage 8: Analytical Layering', withLayers.length);
-
-  // ─── Stage 9: Patch Small Gaps ───────────────────────────
+  
+  // ─── Stage 9: Final Insertion Sweep ─────────────────────
+  const finalInserted = finalInsertionSweep(withLayers, container, orientations);
+  const withFinalInsert = [...withLayers, ...finalInserted];
+  logStage('Stage 9: Final Insertion Sweep', withFinalInsert.length);
+  
+  // ─── Stage 10: Patch Small Gaps ───────────────────────────
   const patched = patchSmallGaps(withLayers, container, orientations);
-  const withPatches = [...withLayers, ...patched];
-  logStage('Stage 9: Patch Small Gaps', withPatches.length);
+  const withPatches = [...withFinalInsert, ...patched];
+  logStage('Stage 10: Patch Small Gaps', withPatches.length);
 
-  // ─── Stage 10: Final Insertion Sweep ─────────────────────
-  const finalInserted = finalInsertionSweep(withPatches, container, orientations);
-  const withFinalInsert = [...withPatches, ...finalInserted];
-  logStage('Stage 10: Final Insertion Sweep', withFinalInsert.length);
 
   // ─── Stage 11: Final Compaction ──────────────────────────
   const compactedFinal = alignBoxesAnalytically(snapBoxesTightly(withFinalInsert));

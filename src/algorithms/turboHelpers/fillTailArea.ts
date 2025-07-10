@@ -21,8 +21,9 @@ export function fillTailArea(
   container: Container,
   orientations: [number, number, number][]
 ): Placement[] {
+  // Calculate dynamic grid size based on minimum box dimension
   const minBoxEdge = Math.min(...orientations.flat().filter(x => x > 0));
-  const GRID_SIZE = Math.max(5, Math.min(50, Math.floor(minBoxEdge / 4)));
+  const effectiveGridSize = Math.max(5, Math.min(50, Math.floor(minBoxEdge / 4)));
 
   const allRotations = Array.from(
     new Set(orientations.flatMap(getAllRotations).map(r => r.join(',')))
@@ -31,6 +32,12 @@ export function fillTailArea(
   const sortedOrients = allRotations.sort(
     (a, b) => (b[0] * b[1] * b[2]) - (a[0] * a[1] * a[2])
   );
+
+  // Early exit if no orientations can fit in tail area
+  const minBoxLength = Math.min(...sortedOrients.map(o => o[0]));
+  if (minBoxLength > tail.length) {
+    return [];
+  }
 
   const stepSize = Math.max(1, Math.floor(minBoxEdge / 8));
 
@@ -41,6 +48,7 @@ export function fillTailArea(
     l: number, h: number, w: number,
     occupied: Placement[]
   ): boolean => {
+    // Basic boundary checks
     if (
       x + l > container.length ||
       y + h > container.height ||
@@ -48,19 +56,16 @@ export function fillTailArea(
       x < tail.startX
     ) return false;
 
-    const zStep = Math.max(1, Math.floor(GRID_SIZE / 2));
-    const yStep = Math.max(1, Math.floor(GRID_SIZE / 2));
+    // Check vertical clearance using heightMap
+    const xGrid = Math.floor(x / effectiveGridSize) * effectiveGridSize;
+    const zGrid = Math.floor(z / effectiveGridSize) * effectiveGridSize;
+    const key = `${xGrid},${zGrid}`;
+    const requiredClearance = tail.heightMap.get(key) || 0;
+    
+    // The box must be placed above the existing content at this location
+    if (y < requiredClearance) return false;
 
-    for (let zi = z; zi < z + w; zi += zStep) {
-      for (let yi = y; yi < y + h; yi += yStep) {
-        const gridY = Math.floor(yi / 10) * 10;
-        const gridZ = Math.floor(zi / 10) * 10;
-        const key = `${gridY},${gridZ}`;
-        const clearance = tail.heightMap.get(key) || 0;
-        if (x < tail.startX + clearance) return false;
-      }
-    }
-
+    // Check for overlaps with other placed boxes
     const newBox: Placement = { position: { x, y, z }, rotation: [l, h, w] };
     return !occupied.some(p => boxesOverlap(newBox, p));
   };
@@ -102,6 +107,7 @@ export function fillTailArea(
         for (const [l, h, w] of validOrients) {
           if (!canPlace(x, y, z, l, h, w, occupied)) continue;
 
+          // Simulate placing multiple boxes of this orientation
           let simX = x;
           let count = 0;
           let tempOccupied = [...occupied];
