@@ -13,10 +13,10 @@ import { patchSmallGaps } from './turboHelpers/patchSmallGaps';
 import { finalInsertionSweep } from './turboHelpers/finalInsertionSweep';
 import { addAnalyticalLayers } from './turboHelpers/analyticalLayering';
 import { sortForTailArea } from './turboHelpers/utils';
+import { cleanOutOfBoundsBoxes } from './turboHelpers/validation';
+import { handleEdgeCases } from './turboHelpers/handleEdgeCases';
 
 export function turboAlgorithm(box: BoxDimensions, container: Container): CalculationResult {
-  // console.log('🚀 Starting Turbo Algorithm');
-
   const start = performance.now();
   let prev = start;
   const timings: { stage: string; time: number; newBoxes: number }[] = [];
@@ -35,6 +35,13 @@ export function turboAlgorithm(box: BoxDimensions, container: Container): Calcul
   const boxInMillimeters = convertToMillimeters(box);
   const orientations = generateOrientations(boxInMillimeters, container);
   logStage('Stage 1: Preprocessing', 0);
+
+  // ─── Stage 1.5: Handle Edge Cases ─────────────────────────
+  const earlyExit = handleEdgeCases(boxInMillimeters, container);
+  if (earlyExit) {
+    logStage('Stage 1.5: Handle Edge Cases', earlyExit.totalBoxes);
+    return earlyExit;
+  }
 
   // ─── Stage 2: Build Initial Wall ─────────────────────────
   const initialWall = buildWall(container, orientations);
@@ -77,54 +84,17 @@ export function turboAlgorithm(box: BoxDimensions, container: Container): Calcul
   const withPatches = [...withFinalInsert, ...patched];
   logStage('Stage 10: Patch Small Gaps', withPatches.length);
 
-
   // ─── Stage 11: Final Compaction ──────────────────────────
-  const compactedFinal = alignBoxesAnalytically(snapBoxesTightly(withFinalInsert));
+  const compactedFinal = alignBoxesAnalytically(snapBoxesTightly(withPatches));
   logStage('Stage 11: Final Compaction', compactedFinal.length);
 
-  // ─── Cleanup: Remove Boxes Still Outside Container ────────
-  const cleaned = compactedFinal.filter(p => {
-    const endX = p.position.x + p.rotation[0];
-    const endY = p.position.y + p.rotation[1];
-    const endZ = p.position.z + p.rotation[2];
+  // ─── Stage 12: Cleanup Invalid Placements ────────────────
+  const cleaned = cleanOutOfBoundsBoxes(compactedFinal, container);
+  logStage('Stage 12: Cleanup Invalid Placements', cleaned.length);
 
-    return (
-      p.position.x >= 0 && p.position.y >= 0 && p.position.z >= 0 &&
-      endX <= container.length &&
-      endY <= container.height &&
-      endZ <= container.width
-    );
-  });
-
-  const removedCount = compactedFinal.length - cleaned.length;
-  if (removedCount > 0) {
-    console.warn(`🧹 Removed ${removedCount} box(es) that exceeded container boundaries`);
-  }
-
-  const outOfBounds = cleaned.filter(p => {
-    const endX = p.position.x + p.rotation[0];
-    const endY = p.position.y + p.rotation[1];
-    const endZ = p.position.z + p.rotation[2];
-
-    return (
-      p.position.x < 0 || p.position.y < 0 || p.position.z < 0 ||
-      endX > container.length || endY > container.height || endZ > container.width
-    );
-  });
-
-  if (outOfBounds.length > 0) {
-    console.warn(`🚫 ${outOfBounds.length} boxes exceed container boundaries`);
-    console.table(outOfBounds.map(p => ({
-      position: p.position,
-      rotation: p.rotation,
-      endX: p.position.x + p.rotation[0],
-      endY: p.position.y + p.rotation[1],
-      endZ: p.position.z + p.rotation[2]
-    })));
-  } 
-  // ─── Stage 12: Final Validation ──────────────────────────
+  // ─── Stage 13: Final Validation ──────────────────────────
   const validPlacements = removeOverlappingBoxes(cleaned);
-  logStage('Stage 12: Final Validation', validPlacements.length);
+  logStage('Stage 13: Final Validation', validPlacements.length);
 
   const totalDuration = Math.round(performance.now() - start);
   console.table(timings);

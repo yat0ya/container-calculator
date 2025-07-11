@@ -76,8 +76,8 @@ async function processRows() {
   const checkpointInterval = 1000;
   let processedCount = 0;
 
-  const startRow = 13623; // 2
-  const endRow = 13624;// ws.rowCount;
+  const startRow = 2;
+  const endRow = ws.rowCount;
   const totalRows = endRow - startRow + 1;
   const startTime = Date.now();
 
