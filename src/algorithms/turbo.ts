@@ -14,6 +14,7 @@ import { finalInsertionSweep } from './turboHelpers/finalInsertionSweep';
 import { addAnalyticalLayers } from './turboHelpers/analyticalLayering';
 import { sortForTailArea } from './turboHelpers/utils';
 import { cleanOutOfBoundsBoxes } from './turboHelpers/validation';
+import { handleEdgeCases } from './turboHelpers/handleEdgeCases';
 
 export function turboAlgorithm(box: BoxDimensions, container: Container): CalculationResult {
   const start = performance.now();
@@ -34,6 +35,13 @@ export function turboAlgorithm(box: BoxDimensions, container: Container): Calcul
   const boxInMillimeters = convertToMillimeters(box);
   const orientations = generateOrientations(boxInMillimeters, container);
   logStage('Stage 1: Preprocessing', 0);
+
+  // ─── Stage 1.5: Handle Edge Cases ─────────────────────────
+  const earlyExit = handleEdgeCases(boxInMillimeters, container);
+  if (earlyExit) {
+    logStage('Stage 1.5: Handle Edge Cases', earlyExit.totalBoxes);
+    return earlyExit;
+  }
 
   // ─── Stage 2: Build Initial Wall ─────────────────────────
   const initialWall = buildWall(container, orientations);
