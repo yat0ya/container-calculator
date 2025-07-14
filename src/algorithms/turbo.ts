@@ -96,9 +96,9 @@ export function turboAlgorithm(box: BoxDimensions, container: Container): Calcul
   const validPlacements = removeOverlappingBoxes(cleaned);
   logStage('Stage 13: Final Validation', validPlacements.length);
 
-  const totalDuration = Math.round(performance.now() - start);
-  console.table(timings);
-  console.log(`🏁 Total time: ${totalDuration} ms`);
+  // const totalDuration = Math.round(performance.now() - start);
+  // console.table(timings);
+  // console.log(`🏁 Total time: ${totalDuration} ms`);
 
   return {
     totalBoxes: validPlacements.length,

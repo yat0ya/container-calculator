@@ -2,7 +2,7 @@
 import ExcelJS from 'exceljs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import { readFileSync, existsSync, mkdirSync } from 'fs';
+import { readFileSync, existsSync, mkdirSync, writeFileSync } from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -45,6 +45,13 @@ function calculateBoxesInContainer(box, container, qty) {
   return { totalBoxes: totalBoxes * qty, isWeightRestricted };
 }
 
+// Edge case detector
+function isFlatBox(box) {
+  const dims = [box.length, box.width, box.height].sort((a, b) => a - b);
+  const [min, , max] = dims;
+  return min / max < 0.1;
+}
+
 // Ensure output dir
 function ensureOutputDirectory() {
   const dir = 'output';
@@ -53,6 +60,12 @@ function ensureOutputDirectory() {
     console.log('📁 Created output directory');
   }
   return dir;
+}
+
+// Determine whether to snapshot at a row
+function shouldSnapshotAtRow(row) {
+  const early = [5, 10, 20, 50, 100, 200, 500, 1000];
+  return early.includes(row) || row % 1000 === 0;
 }
 
 // Main processor
@@ -68,12 +81,11 @@ async function processRows() {
   const ws = workbook.getWorksheet(1);
   console.log(`✅ Loaded worksheet: ${ws.name}`);
 
-  const colMap = { K20: 19, K40: 21, K40HC: 23, K45HC: 25 };
-  const flagMap = { K20: 20, K40: 22, K40HC: 24, K45HC: 26 };
+  const colMap = { K20: 19, K40: 21, K40HC: 23 };
+  const flagMap = { K20: 20, K40: 22, K40HC: 24 };
   const numFmt = '_-* # ##0_-;-* # ##0_-;_-* "-"??_-;_-@_-';
   const parse = v => Number(String(v).replace(',', '.'));
 
-  const checkpointInterval = 1000;
   let processedCount = 0;
 
   const startRow = 2;
@@ -97,14 +109,22 @@ async function processRows() {
     }
 
     const box = { length, width, height, weight };
+
+    // Edge case logging (once per row)
+    const volumeDm3 = (length * width * height) / 1000;
+    if (volumeDm3 <= 10 && !isFlatBox(box)) {
+      console.log('📦 VERY SMALL box detected');
+    } else if (isFlatBox(box) || volumeDm3 <= 20) {
+      console.log('📏 SMALL/FLAT/LONG box detected');
+    }
+
     const item = vals[2]; // Column B
     console.log(`📍 Processing Row ${r}: ${item}, ${length}×${width}×${height} cm, ${weight} kg, qty: ${qty}`);
 
     const results = {
-      K20:    calculateBoxesInContainer(box, containers.K20, qty),
-      K40:    calculateBoxesInContainer(box, containers.K40, qty),
-      K40HC:  calculateBoxesInContainer(box, containers.K40HC, qty),
-      K45HC:  calculateBoxesInContainer(box, containers.K45HC, qty)
+      K20:   calculateBoxesInContainer(box, containers.K20, qty),
+      K40:   calculateBoxesInContainer(box, containers.K40, qty),
+      K40HC: calculateBoxesInContainer(box, containers.K40HC, qty)
     };
 
     for (const [key, { totalBoxes, isWeightRestricted }] of Object.entries(results)) {
@@ -125,8 +145,8 @@ async function processRows() {
     row.getCell(27).value = bestContainer;
     row.getCell(28).value = results[bestContainer].isWeightRestricted ? 'WAGA' : 'OBJĘTOŚĆ';
 
-    const rawResult = turboAlgorithm(box, containers[bestContainer]);
-    const rawBoxes = rawResult?.totalBoxes || 0;
+    const baseResult = turboAlgorithm(box, containers[bestContainer]);
+    const rawBoxes = baseResult?.totalBoxes || 0;
 
     const boxInMeters = {
       length: length / 100,
@@ -144,7 +164,14 @@ async function processRows() {
     row.commit();
     processedCount++;
 
-    // ⏱ Log elapsed and estimated time every 10 rows
+    // 💾 Snapshot checkpoint at specific rows
+    if (shouldSnapshotAtRow(r)) {
+      const checkpointPath = join(outputDir, `checkpoint_${r}.xlsx`);
+      await workbook.xlsx.writeFile(checkpointPath);
+      console.log(`💾 Checkpoint snapshot saved: ${checkpointPath}`);
+    }
+
+    // ⏱ Log progress
     if (processedCount % 10 === 0) {
       const elapsedMs = Date.now() - startTime;
       const avgTimePerRow = elapsedMs / processedCount;
@@ -161,20 +188,16 @@ async function processRows() {
 
       console.log(`⏱ Elapsed: ${formatTime(elapsedMs)} | Estimated Remaining: ${formatTime(remainingMs)}`);
     }
-
-    // 💾 Checkpoint
-    if (processedCount % checkpointInterval === 0) {
-      const checkpointPath = join(outputDir, `checkpoint_row${r}.xlsx`);
-      await workbook.xlsx.writeFile(checkpointPath);
-      console.log(`💾 Checkpoint saved at row ${r}: ${checkpointPath}`);
-    }
   }
 
+  // ✅ Final full output
   const outPath = join(outputDir, 'full.xlsx');
-  await workbook.xlsx.writeFile(outPath);
+  const tempPath = outPath + '.tmp';
+  await workbook.xlsx.writeFile(tempPath);
+  writeFileSync(join(outputDir, 'last_row.txt'), String(endRow));
+  await fs.promises.rename(tempPath, outPath);
   console.log(`✅ Final output saved to: ${outPath}`);
 }
-
 
 processRows().catch(err => {
   console.error('❌ Error:', err.message);
