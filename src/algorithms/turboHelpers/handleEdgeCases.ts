@@ -1,4 +1,5 @@
 import { BoxDimensions, Container, CalculationResult, Placement } from './types';
+import { removeOverlappingBoxes } from './removeOverlappingBoxes';
 
 export function handleEdgeCases(box: BoxDimensions, container: Container): CalculationResult | null {
   const volumeMm3 = box.length * box.width * box.height;
@@ -132,9 +133,12 @@ function handleFlatBox(box: BoxDimensions, container: Container): CalculationRes
     }
   }
 
+  // Remove overlaps before returning
+  const cleanedPlacements = removeOverlappingBoxes(placements);
+
   return {
-    totalBoxes: placements.length,
-    placements,
+    totalBoxes: cleanedPlacements.length,
+    placements: cleanedPlacements,
     boxInMeters: {
       length: box.length / 1000,
       width: box.width / 1000,
