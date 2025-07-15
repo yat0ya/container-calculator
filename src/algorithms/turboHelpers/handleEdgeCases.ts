@@ -5,13 +5,18 @@ export function handleEdgeCases(box: BoxDimensions, container: Container): Calcu
   const volumeMm3 = box.length * box.width * box.height;
   const volumeDm3 = volumeMm3 / 1_000_000;
 
-  if (volumeDm3 <= 10 && !isFlatBox(box)) {
-    // console.log('📦 VERY SMALL box detected');
+  const flat = isFlatBox(box);
+
+
+  if (volumeDm3 <= 2) {
     return handleSmallVolume(box, container, volumeDm3);
   }
 
-  if (isFlatBox(box) || volumeDm3 <= 20) {
-    // console.log('📏 SMALL/FLAT/LONG box detected');
+  if (!flat && volumeDm3 <= 20) {
+    return handleSmallVolume(box, container, volumeDm3);
+  }
+
+  if (flat) {
     return handleFlatBox(box, container);
   }
 
