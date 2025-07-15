@@ -83,7 +83,7 @@ function ensureOutputDirectory() {
 
 // Snapshot logic
 function shouldSnapshotAtRow(row) {
-  const early = [6050, 6100, 6200, 6500, 7000];
+  const early = [10, 50, 100, 200, 500];
   return early.includes(row) || row % 1000 === 0;
 }
 
