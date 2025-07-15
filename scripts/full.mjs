@@ -1,13 +1,13 @@
-// full.mjs
 import ExcelJS from 'exceljs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import { readFileSync, existsSync, mkdirSync, writeFileSync, promises as fsPromises } from 'fs';
+import fs, { readFileSync, existsSync, mkdirSync, writeFileSync } from 'fs';
+import { Worker } from 'worker_threads';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Load turbo algorithm
+// Load turbo algorithm fallback (not used directly, used in workers)
 let turboAlgorithm;
 try {
   const { turboAlgorithm: ta } = await import('../dist/turbo-algorithm.js');
@@ -18,7 +18,27 @@ try {
   process.exit(1);
 }
 
-// Load container data
+// Run turboAlgorithm in a worker thread
+function runTurboInWorker(box, container) {
+  return new Promise((resolve, reject) => {
+    const worker = new Worker(join(__dirname, './worker.mjs'), {
+      type: 'module',
+      workerData: { box, container }
+    });
+
+    worker.on('message', result => {
+      if (result?.error) reject(new Error(result.error));
+      else resolve(result);
+    });
+
+    worker.on('error', reject);
+    worker.on('exit', code => {
+      if (code !== 0) reject(new Error(`Worker exited with code ${code}`));
+    });
+  });
+}
+
+// Load container data from JSON
 function loadContainerData() {
   const filePath = join(process.cwd(), 'src/data/containers.json');
   if (!existsSync(filePath)) throw new Error(`containers.json not found at ${filePath}`);
@@ -28,9 +48,15 @@ function loadContainerData() {
   return containers;
 }
 
-// Run turbo calculation for one container
-function calculateBoxesInContainer(box, container, qty) {
-  const res = turboAlgorithm(box, container);
+// Calculate packing result with worker + weight check
+async function calculateBoxesInContainer(box, container, qty, cache) {
+  const key = `${box.length}-${box.width}-${box.height}-${box.weight}-${container.id}`;
+  let res = cache.get(key);
+  if (!res) {
+    res = await runTurboInWorker(box, container);
+    cache.set(key, res);
+  }
+
   let totalBoxes = res.totalBoxes;
   let isWeightRestricted = false;
 
@@ -45,14 +71,7 @@ function calculateBoxesInContainer(box, container, qty) {
   return { totalBoxes: totalBoxes * qty, isWeightRestricted };
 }
 
-// Edge case detector
-function isFlatBox(box) {
-  const dims = [box.length, box.width, box.height].sort((a, b) => a - b);
-  const [min, , max] = dims;
-  return min / max < 0.1;
-}
-
-// Ensure output dir
+// Ensure output dir exists
 function ensureOutputDirectory() {
   const dir = 'output';
   if (!existsSync(dir)) {
@@ -62,13 +81,13 @@ function ensureOutputDirectory() {
   return dir;
 }
 
-// Determine whether to snapshot at a row
+// Snapshot logic
 function shouldSnapshotAtRow(row) {
-  const early = [5, 10, 20, 50, 100, 200, 500, 1000];
+  const early = [6050, 6100, 6200, 6500, 7000];
   return early.includes(row) || row % 1000 === 0;
 }
 
-// Main processor
+// Main runner
 async function processRows() {
   const containers = loadContainerData();
   const outputDir = ensureOutputDirectory();
@@ -87,93 +106,114 @@ async function processRows() {
   const parse = v => Number(String(v).replace(',', '.'));
 
   let processedCount = 0;
-
+  const cache = new Map();
   const startRow = 2;
   const endRow = ws.rowCount;
   const totalRows = endRow - startRow + 1;
   const startTime = Date.now();
+  const pendingSnapshots = [];
 
-  for (let r = startRow; r <= endRow; r++) {
-    const row = ws.getRow(r);
-    const vals = row.values;
+  const BATCH_SIZE = Math.min(8, totalRows);
 
-    const qty = parse(vals[5]);
-    const height = parse(vals[6]);
-    const width = parse(vals[7]);
-    const length = parse(vals[8]);
-    const weight = parse(vals[10]);
+  for (let r = startRow; r <= endRow; r += BATCH_SIZE) {
+    const calcTasks = [];
 
-    if ([qty, height, width, length, weight].some(n => isNaN(n) || n <= 0)) {
-      console.log(`❌ Row ${r}: Invalid or incomplete box data – skipping.`);
-      continue;
+    for (let i = 0; i < BATCH_SIZE && r + i <= endRow; i++) {
+      const rowNum = r + i;
+      const row = ws.getRow(rowNum);
+      const vals = row.values;
+
+      const qty = parse(vals[5]);
+      const height = parse(vals[6]);
+      const width = parse(vals[7]);
+      const length = parse(vals[8]);
+      const weight = parse(vals[10]);
+
+      if ([qty, height, width, length, weight].some(n => isNaN(n) || n <= 0)) {
+        console.log(`❌ Row ${rowNum}: Invalid or incomplete box data – skipping.`);
+        continue;
+      }
+
+      const box = { length, width, height, weight };
+      console.log(`📍 Processing Row ${rowNum}: ${length}×${width}×${height} cm, ${weight} kg, qty: ${qty}`);
+
+      calcTasks.push(
+        (async () => {
+          const results = {
+            K20: await calculateBoxesInContainer(box, containers.K20, qty, cache),
+            K40: await calculateBoxesInContainer(box, containers.K40, qty, cache),
+            K40HC: await calculateBoxesInContainer(box, containers.K40HC, qty, cache)
+          };
+
+          const candidateKeys = ['K20', 'K40', 'K40HC'];
+          const unrestricted = candidateKeys
+            .filter(k => results[k] && !results[k].isWeightRestricted)
+            .sort((a, b) => results[b].totalBoxes - results[a].totalBoxes);
+
+          const bestContainer = unrestricted[0] || 'K20';
+          const rawBoxes = results[bestContainer].totalBoxes / qty;
+          const boxInMeters = {
+            length: length / 100,
+            width: width / 100,
+            height: height / 100
+          };
+          const boxVolumeM3 = boxInMeters.length * boxInMeters.width * boxInMeters.height;
+          const totalBoxVolume = boxVolumeM3 * rawBoxes;
+          const containerVolume = containers[bestContainer]?.volume ?? 1;
+          const utilization = containerVolume > 0 ? (totalBoxVolume / containerVolume) * 100 : 0;
+
+          return {
+            rowNum,
+            results,
+            bestContainer,
+            reason: results[bestContainer].isWeightRestricted ? 'WAGA' : 'OBJĘTOŚĆ',
+            utilization: Math.round(utilization * 10) / 10
+          };
+        })()
+      );
     }
 
-    const box = { length, width, height, weight };
+    const rowResults = await Promise.all(calcTasks);
 
-    // Edge case logging (once per row)
-    const volumeDm3 = (length * width * height) / 1000;
-    if (volumeDm3 <= 10 && !isFlatBox(box)) {
-      console.log('📦 VERY SMALL box detected');
-    } else if (isFlatBox(box) || volumeDm3 <= 20) {
-      console.log('📏 SMALL/FLAT/LONG box detected');
+    for (const result of rowResults) {
+      const row = ws.getRow(result.rowNum);
+      const { results, bestContainer, reason, utilization } = result;
+
+      for (const key of Object.keys(results)) {
+        const { totalBoxes, isWeightRestricted } = results[key];
+        const capCol = colMap[key];
+        const flagCol = flagMap[key];
+
+        const capCell = row.getCell(capCol);
+        if (capCell.value !== totalBoxes) capCell.value = totalBoxes;
+        capCell.numFmt = numFmt;
+
+        const flag = isWeightRestricted ? 'W' : 'O';
+        const flagCell = row.getCell(flagCol);
+        if (flagCell.value !== flag) flagCell.value = flag;
+      }
+
+      row.getCell(27).value = bestContainer;
+      row.getCell(28).value = reason;
+      row.getCell(29).value = utilization;
+      row.getCell(29).numFmt = '0.0';
+
+      processedCount++;
+
+      if (shouldSnapshotAtRow(result.rowNum)) {
+        const checkpointPath = join(outputDir, `checkpoint_${result.rowNum}.xlsx`);
+        const snapshotPromise = workbook.xlsx.writeFile(checkpointPath).then(() => {
+          console.log(`💾 Checkpoint snapshot saved: ${checkpointPath}`);
+        });
+        pendingSnapshots.push(snapshotPromise);
+      }
     }
 
-    const item = vals[2]; // Column B
-    console.log(`📍 Processing Row ${r}: ${item}, ${length}×${width}×${height} cm, ${weight} kg, qty: ${qty}`);
-
-    const results = {
-      K20:   calculateBoxesInContainer(box, containers.K20, qty),
-      K40:   calculateBoxesInContainer(box, containers.K40, qty),
-      K40HC: calculateBoxesInContainer(box, containers.K40HC, qty)
-    };
-
-    for (const [key, { totalBoxes, isWeightRestricted }] of Object.entries(results)) {
-      const capCol = colMap[key];
-      const flagCol = flagMap[key];
-
-      row.getCell(capCol).value = totalBoxes;
-      row.getCell(capCol).numFmt = numFmt;
-      row.getCell(flagCol).value = isWeightRestricted ? 'W' : 'O';
-    }
-
-    const candidateKeys = ['K20', 'K40', 'K40HC'];
-    const unrestricted = candidateKeys
-      .filter(k => results[k] && !results[k].isWeightRestricted)
-      .sort((a, b) => results[b].totalBoxes - results[a].totalBoxes);
-
-    const bestContainer = unrestricted[0] || 'K20';
-    row.getCell(27).value = bestContainer;
-    row.getCell(28).value = results[bestContainer].isWeightRestricted ? 'WAGA' : 'OBJĘTOŚĆ';
-
-    const baseResult = turboAlgorithm(box, containers[bestContainer]);
-    const rawBoxes = baseResult?.totalBoxes || 0;
-
-    const boxInMeters = {
-      length: length / 100,
-      width: width / 100,
-      height: height / 100
-    };
-    const boxVolumeM3 = boxInMeters.length * boxInMeters.width * boxInMeters.height;
-    const totalBoxVolume = boxVolumeM3 * rawBoxes;
-    const containerVolume = containers[bestContainer]?.volume ?? 1;
-    const utilization = containerVolume > 0 ? (totalBoxVolume / containerVolume) * 100 : 0;
-
-    row.getCell(29).value = Math.round(utilization * 10) / 10;
-    row.getCell(29).numFmt = '0.0';
-
-    row.commit();
-    processedCount++;
-
-    // 💾 Snapshot checkpoint at specific rows
-    if (shouldSnapshotAtRow(r)) {
-      const checkpointPath = join(outputDir, `checkpoint_${r}.xlsx`);
-      await workbook.xlsx.writeFile(checkpointPath);
-      console.log(`💾 Checkpoint snapshot saved: ${checkpointPath}`);
-    }
-
-    // ⏱ Log progress
-    if (processedCount % 10 === 0) {
-      const elapsedMs = Date.now() - startTime;
+    const now = Date.now();
+    const timeSinceLast = now - (global.lastLogTime || 0);
+    if (processedCount === totalRows || timeSinceLast > 10000) {
+      global.lastLogTime = now;
+      const elapsedMs = now - startTime;
       const avgTimePerRow = elapsedMs / processedCount;
       const remainingRows = totalRows - processedCount;
       const remainingMs = avgTimePerRow * remainingRows;
@@ -190,14 +230,18 @@ async function processRows() {
     }
   }
 
-  // ✅ Final full output
+  // Wait for all snapshot saves to finish
+  await Promise.all(pendingSnapshots);
+
   const outPath = join(outputDir, 'full.xlsx');
   const tempPath = outPath + '.tmp';
   await workbook.xlsx.writeFile(tempPath);
   writeFileSync(join(outputDir, 'last_row.txt'), String(endRow));
-  await fsPromises.rename(tempPath, outPath);
+  await fs.promises.rename(tempPath, outPath);
   console.log(`✅ Final output saved to: ${outPath}`);
 }
+
+
 
 processRows().catch(err => {
   console.error('❌ Error:', err.message);
