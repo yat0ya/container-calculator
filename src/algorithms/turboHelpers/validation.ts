@@ -15,7 +15,7 @@ export function cleanOutOfBoundsBoxes(placements: Placement[], container: Contai
 
   const removedCount = placements.length - cleaned.length;
   if (removedCount > 0) {
-    console.warn(`🧹 Removed ${removedCount} box(es) that exceeded container boundaries`);
+    // console.warn(`🧹 Removed ${removedCount} box(es) that exceeded container boundaries`);
   }
 
   return cleaned;

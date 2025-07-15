@@ -1,7 +1,7 @@
 {
   "name": "vite-react-typescript-starter",
   "private": true,
-  "version": "1.5.0",
+  "version": "1.6.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "build-turbo": "vite build --mode turbo-only",
     "process": "npm run build-turbo && node scripts/processExcel.mjs",
-    "process-fast": "node scripts/processExcel.mjs",
+    "power":  "cmd /c start /high node --max-old-space-size=4096 scripts/full.mjs",
     "test": "jest"
   },
   "dependencies": {

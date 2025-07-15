@@ -1,16 +1,22 @@
 import { BoxDimensions, Container, CalculationResult, Placement } from './types';
+import { removeOverlappingBoxes } from './removeOverlappingBoxes';
 
 export function handleEdgeCases(box: BoxDimensions, container: Container): CalculationResult | null {
   const volumeMm3 = box.length * box.width * box.height;
   const volumeDm3 = volumeMm3 / 1_000_000;
 
-  if (volumeDm3 <= 10 && !isFlatBox(box)) {
-    console.log('📦 VERY SMALL box detected');
+  const flat = isFlatBox(box);
+
+
+  if (volumeDm3 <= 2) {
     return handleSmallVolume(box, container, volumeDm3);
   }
 
-  if (isFlatBox(box) || volumeDm3 <= 20) {
-    console.log('📏 SMALL/FLAT/LONG box detected');
+  if (!flat && volumeDm3 <= 20) {
+    return handleSmallVolume(box, container, volumeDm3);
+  }
+
+  if (flat) {
     return handleFlatBox(box, container);
   }
 
@@ -132,9 +138,12 @@ function handleFlatBox(box: BoxDimensions, container: Container): CalculationRes
     }
   }
 
+  // Remove overlaps before returning
+  const cleanedPlacements = removeOverlappingBoxes(placements);
+
   return {
-    totalBoxes: placements.length,
-    placements,
+    totalBoxes: cleanedPlacements.length,
+    placements: cleanedPlacements,
     boxInMeters: {
       length: box.length / 1000,
       width: box.width / 1000,
