@@ -34,6 +34,69 @@ export function VisualizationModal({ isOpen, onClose, result, boxDimensions, con
               <Scene result={result} boxDimensions={boxDimensions} container={container} />
             </Canvas>
           </Suspense>
+          
+          {/* Helper image for desktop users - shows mouse interaction guide */}
+          <div className="absolute bottom-4 right-4 z-10 hidden md:block">
+            <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-6 shadow-2xl border border-gray-200">
+              {/* Mouse with orbit arrows - Rotate */}
+              <div className="flex items-center justify-center mb-3">
+                <div className="relative">
+                  {/* Mouse body */}
+                  <div className="w-10 h-14 bg-gray-100 rounded-t-full rounded-b-xl border-2 border-gray-300 relative shadow-md">
+                    {/* Left click highlight */}
+                    <div className="absolute top-1 left-1 w-4 h-5 bg-blue-500 rounded-tl-full opacity-90 shadow-sm"></div>
+                    {/* Mouse wheel */}
+                    <div className="absolute top-3 left-1/2 transform -translate-x-1/2 w-1.5 h-4 bg-gray-400 rounded-full"></div>
+                  </div>
+                  
+                  {/* Orbit arrows around mouse */}
+                  <div className="absolute -top-3 -left-3 w-16 h-20">
+                    {/* Circular orbit path */}
+                    <div className="absolute inset-0 border-2 border-dashed border-blue-500 rounded-full opacity-80"></div>
+                    {/* Rotation arrows */}
+                    <div className="absolute top-0 left-1/2 transform -translate-x-1/2 text-blue-600 text-lg font-bold">↻</div>
+                    <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 text-blue-600 text-lg font-bold">↺</div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Mouse with scroll wheel - Zoom */}
+              <div className="flex items-center justify-center mb-4">
+                <div className="relative">
+                  {/* Mouse body */}
+                  <div className="w-10 h-14 bg-gray-100 rounded-t-full rounded-b-xl border-2 border-gray-300 relative shadow-md">
+                    {/* Scroll wheel highlight */}
+                    <div className="absolute top-3 left-1/2 transform -translate-x-1/2 w-3 h-5 bg-green-500 rounded-full opacity-90 shadow-sm"></div>
+                  </div>
+                  
+                  {/* Zoom indicators */}
+                  <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 text-green-600 text-lg font-bold animate-pulse">↑</div>
+                  <div className="absolute -bottom-4 left-1/2 transform -translate-x-1/2 text-green-600 text-lg font-bold animate-pulse">↓</div>
+                  
+                  {/* Zoom symbols */}
+                  <div className="absolute -left-8 top-1/2 transform -translate-y-1/2 text-green-600 text-xl font-bold bg-green-100 rounded-full w-6 h-6 flex items-center justify-center">+</div>
+                  <div className="absolute -right-8 top-1/2 transform -translate-y-1/2 text-green-600 text-xl font-bold bg-green-100 rounded-full w-6 h-6 flex items-center justify-center">−</div>
+                </div>
+              </div>
+              
+              {/* Mouse with right click - Pan */}
+              <div className="flex items-center justify-center">
+                <div className="relative">
+                  {/* Mouse body */}
+                  <div className="w-10 h-14 bg-gray-100 rounded-t-full rounded-b-xl border-2 border-gray-300 relative shadow-md">
+                    {/* Right click highlight */}
+                    <div className="absolute top-1 right-1 w-4 h-5 bg-orange-500 rounded-tr-full opacity-90 shadow-sm"></div>
+                  </div>
+                  
+                  {/* Pan arrows */}
+                  <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 text-orange-600 text-lg font-bold bg-orange-100 rounded-full w-6 h-6 flex items-center justify-center">↑</div>
+                  <div className="absolute -bottom-4 left-1/2 transform -translate-x-1/2 text-orange-600 text-lg font-bold bg-orange-100 rounded-full w-6 h-6 flex items-center justify-center">↓</div>
+                  <div className="absolute -left-6 top-1/2 transform -translate-y-1/2 text-orange-600 text-lg font-bold bg-orange-100 rounded-full w-6 h-6 flex items-center justify-center">←</div>
+                  <div className="absolute -right-6 top-1/2 transform -translate-y-1/2 text-orange-600 text-lg font-bold bg-orange-100 rounded-full w-6 h-6 flex items-center justify-center">→</div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div className="bg-gray-50 p-4 rounded-b-xl border-t">
